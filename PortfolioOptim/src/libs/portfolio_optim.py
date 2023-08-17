@@ -1,46 +1,55 @@
 import numpy as np
+from qpsolvers import solve_qp # type: ignore
+
+array_type = np.ndarray[int,np.dtype[np.float64]]
 
 class PortfolioOptimization:
-    def __init__(self, expected_returns:dict[str,float], covariance_matrix:np.ndarray[int,np.dtype[np.float64]], risk_free_rate:float=0.0):
+    def __init__(self, expected_returns:dict[str,float], covariance_matrix:array_type, risk_free_rate:float=0.0):
         self.expected_returns = expected_returns
         self.covariance_matrix = covariance_matrix
         self.risk_free_rate = risk_free_rate
         self.__array_expected_returns = np.array(list(expected_returns.values()))
         self.__number_of_assets = len(expected_returns)
     
-    def __calculate_portfolio_return(self, weights:np.ndarray[int,np.dtype[np.float64]]) -> float:
-        return np.dot(weights, self.__array_expected_returns)
-    
-    def __calculate_portfolio_variance(self, weights:np.ndarray[int,np.dtype[np.float64]]) -> float:
-        return np.dot(weights.T, np.dot(self.covariance_matrix, weights))
-    
-    def __calculate_portfolio_risk(self, weights:np.ndarray[int,np.dtype[np.float64]]) -> float:
-        return np.sqrt(self.__calculate_portfolio_variance(weights))
-    
-    def __calculate_portfolio_sharpe_ratio(self, weights:np.ndarray[int,np.dtype[np.float64]]) -> float:
-        return (self.__calculate_portfolio_return(weights) - self.risk_free_rate) / self.__calculate_portfolio_risk(weights)
+    @staticmethod
+    def __calculate_portfolio_return(weights:array_type, expected_returns: array_type) -> float:
+        return np.dot(weights, expected_returns)
     
     @staticmethod
-    def __add_column(covariance_matrix:np.ndarray[int,np.dtype[np.float64]], value:float=1.0):
-        column_index = covariance_matrix.shape[1]
-        return np.insert(covariance_matrix, column_index, value, axis=1)
+    def __calculate_portfolio_variance(weights:array_type, covariance_matrix:array_type) -> float:
+        return np.dot(weights.T, np.dot(covariance_matrix, weights))
     
     @staticmethod
-    def __add_column_values(covariance_matrix:np.ndarray[int,np.dtype[np.float64]], values:np.ndarray[int,np.dtype[np.float64]]):
-        column_index = covariance_matrix.shape[1]
-        return np.insert(covariance_matrix, column_index, values, axis=1)
+    def __calculate_portfolio_risk(weights:array_type, covariance_matrix:array_type) -> float:
+        return np.sqrt(PortfolioOptimization.__calculate_portfolio_variance(weights, covariance_matrix))
     
     @staticmethod
-    def __add_row(covariance_matrix:np.ndarray[int,np.dtype[np.float64]], value:float=1.0):
-        row_index = covariance_matrix.shape[0]
-        return np.insert(covariance_matrix, row_index, value, axis=0)
+    def __calculate_portfolio_sharpe_ratio(weights:array_type, expected_returns:array_type, covariance_matrix:array_type, risk_free_rate:float) -> float:
+        adjusted_return = PortfolioOptimization.__calculate_portfolio_return(weights, expected_returns) - risk_free_rate
+        return adjusted_return / PortfolioOptimization.__calculate_portfolio_risk(weights, covariance_matrix)
     
     @staticmethod
-    def __add_row_values(covariance_matrix:np.ndarray[int,np.dtype[np.float64]], values:np.ndarray[int,np.dtype[np.float64]]):
-        row_index = covariance_matrix.shape[0]
-        return np.insert(covariance_matrix, row_index, values, axis=0)
+    def __add_column(matrix:array_type, value:float=1.0):
+        column_index = matrix.shape[1]
+        return np.insert(matrix, column_index, value, axis=1)
     
-    def target_return_portfolio(self, target_return:float, use_risk_free:bool = False):
+    @staticmethod
+    def __add_column_values(matrix:array_type, values:array_type):
+        column_index = matrix.shape[1]
+        return np.insert(matrix, column_index, values, axis=1)
+    
+    @staticmethod
+    def __add_row(matrix:array_type, value:float=1.0):
+        row_index = matrix.shape[0]
+        return np.insert(matrix, row_index, value, axis=0)
+    
+    @staticmethod
+    def __add_row_values(matrix:array_type, values:array_type):
+        row_index = matrix.shape[0]
+        return np.insert(matrix, row_index, values, axis=0)
+    
+    def target_return_portfolio(self, target_return:float, use_risk_free:bool = False, short:bool = True,
+                                min_weight:float = 0.0, max_weight:float = 1.0):
         covariance = self.covariance_matrix
         n_values = self.__number_of_assets
         expected_returns = self.__array_expected_returns
@@ -51,18 +60,65 @@ class PortfolioOptimization:
             n_values = self.__number_of_assets + 1
             expected_returns = np.append(expected_returns, self.risk_free_rate)
         dmat = 2*covariance
-        ones = np.ones(n_values)
-        dmat = self.__add_row_values(dmat, expected_returns)
-        dmat = self.__add_row_values(dmat, ones)
-        rets = np.append(expected_returns, [0,0])
-        dmat = self.__add_column_values(dmat, rets)
-        ones = np.ones(n_values)
-        ones = np.append(ones, [0, 0])
-        dmat = self.__add_column_values(dmat, ones)
-        bvec = np.zeros(n_values)
-        bvec = np.append(bvec, [target_return, 1])
-        sol = np.linalg.solve(dmat, bvec)
-        return sol[0:n_values]
+        dvec = np.zeros(n_values)
+        if short:
+            ones = np.ones(n_values)
+            dmat = self.__add_row_values(dmat, expected_returns)
+            dmat = self.__add_row_values(dmat, ones)
+            rets = np.append(expected_returns, [0,0])
+            dmat = self.__add_column_values(dmat, rets)
+            ones = np.append(ones, [0, 0])
+            dmat = self.__add_column_values(dmat, ones)
+            bvec = np.zeros(n_values)
+            bvec = np.append(bvec, [target_return, 1])
+            sol = np.linalg.solve(dmat, bvec)
+            weights = sol[0:n_values]
+        else:
+            p = dmat
+            q = dvec
+            a = np.concatenate([np.ones(n_values), expected_returns]).reshape(2,n_values)
+            lb = np.array([min_weight]*n_values)
+            ub = np.array([max_weight]*n_values)
+            b = np.array([1.0, target_return])
+            sol:array_type = solve_qp(P = p, q = q, lb = lb, ub = ub, A = a, b = b, solver="daqp") # type: ignore
+            weights = sol/np.sum(sol)
+        dict_return = {
+            "weights": weights,
+            "return": self.__calculate_portfolio_return(weights, expected_returns),
+            "risk": self.__calculate_portfolio_risk(weights, covariance),
+            "sharpe_ratio": self.__calculate_portfolio_sharpe_ratio(weights, expected_returns, covariance, self.risk_free_rate)
+        }
+        return dict_return
+    
+    def min_variance_portfolio(self, short:bool = True, min_weight:float = 0.0, max_weight:float = 1.0):
+        covariance = self.covariance_matrix
+        n_values = self.__number_of_assets
+        expected_returns = self.__array_expected_returns
+        if short:
+            dmat = 2*covariance
+            dvec = np.zeros(n_values+1)
+            dvec[n_values] = 1
+            dmat = self.__add_column(dmat,1)
+            dmat = self.__add_row(dmat,1)
+            dmat[n_values,n_values] = 0
+            sol = np.linalg.solve(dmat, dvec)
+            weights = sol[0:n_values]
+        else:
+            p = 2*covariance
+            q = np.zeros(n_values)
+            a = np.ones(n_values).reshape(1,n_values)
+            lb = np.array([min_weight]*n_values)
+            ub = np.array([max_weight]*n_values)
+            b = np.array([1.0])
+            sol:array_type = solve_qp(P = p, q = q, lb = lb, ub = ub, A = a, b = b, solver="daqp") # type: ignore
+            weights = sol/np.sum(sol)
+        dict_return = {
+            "weights": weights,
+            "return": self.__calculate_portfolio_return(weights, expected_returns),
+            "risk": self.__calculate_portfolio_risk(weights, covariance),
+            "sharpe_ratio": self.__calculate_portfolio_sharpe_ratio(weights, expected_returns, covariance, self.risk_free_rate)
+        }
+        return dict_return
 
 if __name__ == "__main__":
     expected_returns = {
@@ -76,4 +132,5 @@ if __name__ == "__main__":
         [0.1, 0.15, 0.3]
     ])
     portfolio_optimization = PortfolioOptimization(expected_returns, covariance_matrix, 0.05)
-    print(portfolio_optimization.target_return_portfolio(0.25, use_risk_free=True))
+    print(portfolio_optimization.target_return_portfolio(0.25, use_risk_free=False, short = False))
+    print(portfolio_optimization.min_variance_portfolio(short = True))

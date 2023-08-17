@@ -11,7 +11,9 @@ vol_models = Literal['GARCH', 'ARCH', 'EGARCH', 'FIGARCH', 'APARCH', 'HARCH']
 mean_types = Literal['Constant', 'Zero', 'LS', 'AR', 'ARX', 'HAR', 'HARX', 'constant', 'zero']
 distribution_types = Literal['normal', 'gaussian', 't', 'studentst', 'skewstudent', 'skewt', 'ged', 'generalized error']
 
-def __fit_model(order: tuple[int,int,int], returns: np.ndarray[int,np.dtype[np.float64]],
+array_type = np.ndarray[int,np.dtype[np.float64]]
+
+def __fit_model(order: tuple[int,int,int], returns: array_type,
               volatility_model:vol_models='GARCH',
               mean_model:mean_types='HARX',
               distribution:distribution_types='studentst'):
@@ -21,7 +23,7 @@ def __fit_model(order: tuple[int,int,int], returns: np.ndarray[int,np.dtype[np.f
     results = model.fit(update_freq=0, disp='off') # type: ignore
     return order, volatility_model, mean_model, distribution, results, model
 
-def __fit_model_parallel(parameters: tuple[tuple[tuple[int,int,int], vol_models], np.ndarray[int,np.dtype[np.float64]], mean_types, distribution_types]):
+def __fit_model_parallel(parameters: tuple[tuple[tuple[int,int,int], vol_models], array_type, mean_types, distribution_types]):
     (order, volatility_model), returns, mean_model, distribution = parameters
     return __fit_model(order, returns, volatility_model, mean_model, distribution)
 
@@ -43,10 +45,11 @@ def __create_orders(max_p:int=3, max_q:int=3, max_o:int=0, volatility_models:lis
             continue
         yield (p, q, o,), volatility_model
 
-def find_best_garch(returns:np.ndarray[int,np.dtype[np.float64]], max_p:int=3, max_q:int=3, max_o:int=0,
+def find_best_garch(returns:array_type, max_p:int=3, max_q:int=3, max_o:int=0,
                     volatility_models:list[vol_models]|None=None, mean_models:list[mean_types]|None=None,
                     distributions:list[distribution_types]|None=None,
-                    use_parallel:bool=True, max_workers:int|None=None, verbose:bool = False):
+                    use_parallel:bool=True, max_workers:int|None=None, verbose:bool = False,
+                    executor:ProcessPoolExecutor|None=None):
     if volatility_models is None:
         volatility_models = ['GARCH']
     if mean_models is None:
@@ -56,7 +59,14 @@ def find_best_garch(returns:np.ndarray[int,np.dtype[np.float64]], max_p:int=3, m
     orders = __create_orders(max_p, max_q, max_o, volatility_models)
     all_models: dict[tuple[int|str], tuple[ARCHModelResult, HARX]] = {}
     if use_parallel:
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        if executor is None:
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                for order, volatility_model, mean_model, distribution, results, model in executor.map(__fit_model_parallel, product(orders, [returns], mean_models, distributions)):
+                    model_specs = tuple([*order, volatility_model, mean_model, distribution])
+                    all_models[model_specs] = (results, model)
+                    if verbose:
+                        print(f"Finished fitting model: {model_specs}")
+        else:
             for order, volatility_model, mean_model, distribution, results, model in executor.map(__fit_model_parallel, product(orders, [returns], mean_models, distributions)):
                 model_specs = tuple([*order, volatility_model, mean_model, distribution])
                 all_models[model_specs] = (results, model)
@@ -80,6 +90,6 @@ if __name__ == "__main__":
                                                          volatility_models=['GARCH', 'ARCH', 'EGARCH', 'FIGARCH', 'APARCH', 'HARCH'],
                                                          distributions=['normal','t','skewt'],
                                                          mean_models=['AR', 'ARX', 'HAR', 'HARX','Constant'],
-                                                         use_parallel=True, max_workers=8, verbose=True)
+                                                         use_parallel=True, max_workers=4, verbose=True)
     end = dt.datetime.now()
     print(f"Fitted the best model ({best_order}) in {len(all_models)} models with BIC: {all_models[best_order][0].bic:.2f} in {end-start}")
