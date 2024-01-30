@@ -8,6 +8,8 @@ namespace Tcc.DownloadData.Data
     {
         public DbSet<Company> Companies { get; set; }
         public DbSet<Ticker> Tickers { get; set; }
+        public DbSet<Industry> Industries { get; set; }
+        public DbSet<CompanyIndustry> CompanyIndustries { get; set; }
         private static bool CheckInterfaces(Type type)
         {
             var interfaces = type.GetInterfaces();

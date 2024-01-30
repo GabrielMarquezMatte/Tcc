@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -6,6 +7,7 @@ using Cocona;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Tcc.DownloadData.Data;
+using Tcc.DownloadData.Entities;
 using Tcc.DownloadData.Options;
 using Tcc.DownloadData.Requests;
 using Tcc.DownloadData.Responses;
@@ -16,15 +18,19 @@ namespace Tcc.DownloadData.Commands
     {
         private readonly Channel<CompaniesResponse> CompaniesChannel = Channel.CreateUnbounded<CompaniesResponse>();
         private readonly Channel<CompanyResponse> CompanyChannel = Channel.CreateUnbounded<CompanyResponse>();
+        private static Uri CreateUri<T>(Uri baseUri, T requestData)
+        {
+            var jsonString = JsonSerializer.Serialize(requestData);
+            var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
+            return new(baseUri + "/" + base64String);
+        }
         private async Task<CompaniesResponse?> GetCompaniesAsync(int pageNumber, CancellationToken cancellationToken)
         {
             CompaniesRequest request = new()
             {
                 PageNumber = pageNumber,
             };
-            var jsonString = JsonSerializer.Serialize(request);
-            var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
-            Uri url = new(urlOptions.Value.CompaniesUrl + "/" + base64String);
+            var url = CreateUri(urlOptions.Value.CompaniesUrl, request);
             using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadFromJsonAsync<CompaniesResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -50,22 +56,29 @@ namespace Tcc.DownloadData.Commands
             }
             CompaniesChannel.Writer.Complete();
         }
-        private async Task<CompanyResponse?> GetCompanyResponseAsync(int codeCvm, CancellationToken cancellationToken)
+        private async Task GetCompanyResponseAsync(int codeCvm, CancellationToken cancellationToken)
         {
             CompanyRequest request = new()
             {
                 CodeCvm = codeCvm,
             };
-            var jsonString = JsonSerializer.Serialize(request);
-            var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
-            Uri url = new(urlOptions.Value.CompanyUrl + "/" + base64String);
+            var url = CreateUri(urlOptions.Value.CompanyUrl, request);
             using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-            if(response.Content.Headers.ContentLength <= 10)
+            if (response.Content.Headers.ContentLength <= 10)
             {
-                return null;
+                return;
             }
-            return await response.Content.ReadFromJsonAsync<CompanyResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
+            var company = await response.Content.ReadFromJsonAsync<CompanyResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (company == null
+                || string.IsNullOrEmpty(company.Cnpj)
+                || string.IsNullOrEmpty(company.CompanyName)
+                || company.CodeCvm == 0
+                || string.IsNullOrEmpty(company.IndustryClassification))
+            {
+                return;
+            }
+            await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
         }
         private async Task GetCompaniesReaderAsync(CancellationToken cancellationToken)
         {
@@ -77,61 +90,104 @@ namespace Tcc.DownloadData.Commands
                 }
                 foreach (var result in companiesResponse.Results)
                 {
-                    var companyResponse = await GetCompanyResponseAsync(result.CodeCvm, cancellationToken).ConfigureAwait(false);
-                    if(companyResponse == null
-                        || string.IsNullOrEmpty(companyResponse.Cnpj)
-                        || string.IsNullOrEmpty(companyResponse.CompanyName)
-                        || companyResponse.CodeCvm == 0
-                        || string.IsNullOrEmpty(companyResponse.IndustryClassification))
-                    {
-                        continue;
-                    }
-                    await CompanyChannel.Writer.WriteAsync(companyResponse, cancellationToken).ConfigureAwait(false);
+                    await GetCompanyResponseAsync(result.CodeCvm, cancellationToken).ConfigureAwait(false);
                 }
             }
             CompanyChannel.Writer.Complete();
         }
-        private async Task SaveCompaniesAsync(CancellationToken cancellationToken)
+        private async IAsyncEnumerable<Industry> SaveIndustryAsync(CompanyResponse companyResponse,
+                                                                   Dictionary<string, Industry> industries,
+                                                                   [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            await foreach (var companyResponse in CompanyChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            var industrySplit = companyResponse.IndustryClassification.Split(" / ").Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var industryName in industrySplit)
             {
-                if (companyResponse == null)
+                var industry = industries.GetValueOrDefault(industryName);
+                if (industry != null)
+                {
+                    yield return industry;
+                    continue;
+                }
+                industry = new()
+                {
+                    Name = industryName,
+                };
+                await stockContext.Industries.AddAsync(industry, cancellationToken).ConfigureAwait(false);
+                industries[industry.Name] = industry;
+                yield return industry;
+            }
+        }
+        private async Task<Company> SaveCompanyAsync(CompanyResponse companyResponse, Dictionary<string, Company> companies, CancellationToken cancellationToken)
+        {
+            var company = companies.GetValueOrDefault(companyResponse.Cnpj);
+            if (company != null)
+            {
+                return company;
+            }
+            company = new()
+            {
+                Cnpj = companyResponse.Cnpj,
+                Name = companyResponse.CompanyName,
+                CvmCode = companyResponse.CodeCvm,
+                HasBdrs = companyResponse.HasBdrs,
+                HasEmissions = companyResponse.HasEmissions,
+            };
+            await stockContext.Companies.AddAsync(company, cancellationToken).ConfigureAwait(false);
+            companies[company.Cnpj] = company;
+            return company;
+        }
+        private async Task SaveCompanyIndustriesAsync(Company company, Industry industry, Dictionary<(string, string), CompanyIndustry> companyIndustries, CancellationToken cancellationToken)
+        {
+            var companyIndustry = companyIndustries.GetValueOrDefault((company.Cnpj, industry.Name));
+            if (companyIndustry != null)
+            {
+                return;
+            }
+            companyIndustry = new()
+            {
+                Company = company,
+                Industry = industry,
+            };
+            await stockContext.CompanyIndustries.AddAsync(companyIndustry, cancellationToken).ConfigureAwait(false);
+            companyIndustries[(company.Cnpj, industry.Name)] = companyIndustry;
+        }
+        private async Task SaveTickersAsync(Company company, Dictionary<string, Ticker> tickers, IEnumerable<CompanyCodes> codes, CancellationToken cancellationToken)
+        {
+            foreach (var otherCode in codes.Where(c => !string.IsNullOrEmpty(c.Code) && !string.IsNullOrEmpty(c.Isin)).DistinctBy(x => x.Code))
+            {
+                var ticker = tickers.GetValueOrDefault(otherCode.Code);
+                if (ticker != null)
                 {
                     continue;
                 }
-                var company = await stockContext.Companies.FirstOrDefaultAsync(c => c.Cnpj == companyResponse.Cnpj, cancellationToken).ConfigureAwait(false);
-                if (company == null)
+                ticker = new()
                 {
-                    company = new()
-                    {
-                        Cnpj = companyResponse.Cnpj,
-                        Industry = companyResponse.IndustryClassification,
-                        Name = companyResponse.CompanyName,
-                        CvmCode = companyResponse.CodeCvm,
-                        HasBdrs = companyResponse.HasBdrs,
-                        HasEmissions = companyResponse.HasEmissions,
-                    };
-                    await stockContext.Companies.AddAsync(company, cancellationToken).ConfigureAwait(false);
+                    Isin = otherCode.Isin,
+                    StockTicker = otherCode.Code,
+                    Company = company,
+                };
+                await stockContext.Tickers.AddAsync(ticker, cancellationToken).ConfigureAwait(false);
+                tickers[otherCode.Code] = ticker;
+            }
+        }
+        private async Task SaveCompaniesAsync(CancellationToken cancellationToken)
+        {
+            var companiesInDb = await stockContext.Companies.ToDictionaryAsync(c => c.Cnpj, cancellationToken).ConfigureAwait(false);
+            var tickersInDb = await stockContext.Tickers.ToDictionaryAsync(t => t.StockTicker, cancellationToken).ConfigureAwait(false);
+            var industriesInDb = await stockContext.Industries.ToDictionaryAsync(i => i.Name, cancellationToken).ConfigureAwait(false);
+            var companyIndustriesInDb = await stockContext.CompanyIndustries.ToDictionaryAsync(ci => (ci.Company!.Cnpj, ci.Industry!.Name), cancellationToken).ConfigureAwait(false);
+            await foreach (var companyResponse in CompanyChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var company = await SaveCompanyAsync(companyResponse, companiesInDb, cancellationToken).ConfigureAwait(false);
+                await foreach (var industry in SaveIndustryAsync(companyResponse, industriesInDb, cancellationToken).ConfigureAwait(false))
+                {
+                    await SaveCompanyIndustriesAsync(company, industry, companyIndustriesInDb, cancellationToken).ConfigureAwait(false);
                 }
                 if (companyResponse.OtherCodes == null)
                 {
                     continue;
                 }
-                company.Tickers ??= [];
-                foreach (var otherCode in companyResponse.OtherCodes.Where(c => !string.IsNullOrEmpty(c.Code) && !string.IsNullOrEmpty(c.Isin)).DistinctBy(x => x.Code))
-                {
-                    var ticker = await stockContext.Tickers.FirstOrDefaultAsync(t => t.StockTicker == otherCode.Code, cancellationToken).ConfigureAwait(false);
-                    if (ticker != null)
-                    {
-                        continue;
-                    }
-                    ticker = new()
-                    {
-                        Isin = otherCode.Isin,
-                        StockTicker = otherCode.Code,
-                    };
-                    company.Tickers.Add(ticker);
-                }
+                await SaveTickersAsync(company, tickersInDb, companyResponse.OtherCodes, cancellationToken).ConfigureAwait(false);
             }
             await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }

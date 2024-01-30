@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Tcc.DownloadData.Entities;
 
-namespace Tcc.DownloadData.Mapping
+namespace Tcc.DownloadData.Data.Mapping
 {
     public sealed class TickersMapping : IEntityTypeConfiguration<Ticker>
     {
