@@ -7,6 +7,6 @@ namespace Tcc.DownloadData.Requests
         [JsonPropertyName("codeCVM")]
         public int CodeCvm { get; set; }
         [JsonPropertyName("language")]
-        public string Language { get; set; } = "pt-br";
+        public string Language { get; } = "pt-br";
     }
 }

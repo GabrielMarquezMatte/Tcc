@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Threading.Channels;
+using FastEnumUtility;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,7 +19,6 @@ namespace Tcc.DownloadData.Repositories
     public sealed class HistoricalDataRepository(StockContext stockContext, HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions, ILogger<HistoricalDataRepository> logger)
     {
         private readonly Channel<HistoricalData> channel = Channel.CreateUnbounded<HistoricalData>();
-        // Logger message definitions
         private static readonly Action<ILogger, string, Exception?> _downloadFailed = LoggerMessage.Define<string>(
             LogLevel.Warning,
             new EventId(1, "DownloadFailed"),
@@ -33,25 +33,20 @@ namespace Tcc.DownloadData.Repositories
             "Finished processing historical data on {Date}");
         private static void LogMessage(Action<ILogger, string, Exception?> action, ILogger logger, DateTime date, HistoricalType historicalType, Exception? exception = null)
         {
-            action(logger, historicalType switch
-            {
-                HistoricalType.Day => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                HistoricalType.Month => date.ToString("yyyy-MM", CultureInfo.InvariantCulture),
-                HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
-                _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
-            }, exception);
+            action(logger, DateToStringLog(historicalType, date), exception);
         }
-        private static string TypeToString(HistoricalType historicalType) => historicalType switch
-        {
-            HistoricalType.Day => "D",
-            HistoricalType.Month => "M",
-            HistoricalType.Year => "A",
-            _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
-        };
+        private static string TypeToString(HistoricalType historicalType) => historicalType.GetLabel() ?? throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null);
         private static string DateToString(HistoricalType historicalType, DateTime date) => historicalType switch
         {
             HistoricalType.Day => date.ToString("ddMMyyyy", CultureInfo.InvariantCulture),
             HistoricalType.Month => date.ToString("MMyyyy", CultureInfo.InvariantCulture),
+            HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
+            _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
+        };
+        private static string DateToStringLog(HistoricalType historicalType, DateTime date) => historicalType switch
+        {
+            HistoricalType.Day => date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
+            HistoricalType.Month => date.ToString("MM/yyyy", CultureInfo.InvariantCulture),
             HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
             _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
         };

@@ -12,7 +12,7 @@ namespace Tcc.DownloadData
             builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
             builder.Services.InstallServices(builder.Configuration, builder.Logging, typeof(Program).Assembly);
             var app = builder.Build();
-            app.AddCommands<DownloadStockData>();
+            app.AddCommands<StockDataCommand>();
             return app.RunAsync(app.Lifetime.ApplicationStopping);
         }
     }

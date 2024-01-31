@@ -21,11 +21,6 @@ namespace Tcc.DownloadData.Services
             new EventId(2, "CompanyHasBeenSaved"),
             "Company {Name}({Cnpj}) has been saved"
         );
-        private static readonly Action<ILogger, string, Exception?> _logTimeSpent = LoggerMessage.Define<string>(
-            LogLevel.Information,
-            new EventId(3, "LogTimeSpent"),
-            "SaveCompaniesAsync took {Elapsed}"
-        );
         private async IAsyncEnumerable<Industry> SaveIndustryAsync(CompanyResponse companyResponse,
                                                                    Dictionary<string, Industry> industries,
                                                                    [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -123,7 +118,6 @@ namespace Tcc.DownloadData.Services
             {
                 var company = await SaveCompanyAsync(companyResponse, companiesInDb, cancellationToken).ConfigureAwait(false);
                 await ProcessIndustriesAsync(company, companyResponse, industriesInDb, companyIndustriesInDb, cancellationToken).ConfigureAwait(false);
-
                 if (companyResponse.OtherCodes == null)
                 {
                     _companyHasNoTickers(logger, companyResponse.CompanyName, companyResponse.Cnpj, arg4: null);
@@ -136,15 +130,12 @@ namespace Tcc.DownloadData.Services
         }
         public async Task SaveCompaniesAsync(int maxParallelism = 10, CancellationToken cancellationToken = default)
         {
-            var stopwatch = Stopwatch.StartNew();
             var companiesInDb = await stockContext.Companies.ToDictionaryAsync(c => c.Cnpj, cancellationToken).ConfigureAwait(false);
             var tickersInDb = await stockContext.Tickers.ToDictionaryAsync(t => t.StockTicker, cancellationToken).ConfigureAwait(false);
             var industriesInDb = await stockContext.Industries.ToDictionaryAsync(i => i.Name, cancellationToken).ConfigureAwait(false);
             var companyIndustriesInDb = await stockContext.CompanyIndustries.ToDictionaryAsync(ci => (ci.Company!.Cnpj, ci.Industry!.Name), cancellationToken).ConfigureAwait(false);
             await ProcessCompanyResponsesAsync(companiesInDb, tickersInDb, industriesInDb, companyIndustriesInDb, maxParallelism, cancellationToken).ConfigureAwait(false);
             await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            stopwatch.Stop();
-            _logTimeSpent(logger, stopwatch.Elapsed.ToString(), arg3: null);
         }
     }
 }

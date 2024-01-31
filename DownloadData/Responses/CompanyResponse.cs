@@ -10,6 +10,8 @@ namespace Tcc.DownloadData.Responses
         public int CodeCvm { get; set; }
         [JsonPropertyName("companyName")]
         public required string CompanyName { get; set; }
+        [JsonPropertyName("issuingCompany")]
+        public required string IssuingCompany { get; set; }
         [JsonPropertyName("industryClassification")]
         public required string IndustryClassification { get; set; }
         [JsonPropertyName("hasBDR")]

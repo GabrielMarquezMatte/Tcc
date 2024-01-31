@@ -31,7 +31,7 @@ namespace Tcc.DownloadData.Services
             var hasData = await stockContext.HistoricalData.AnyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             if (startDate == null)
             {
-                startDate = hasData ? await stockContext.HistoricalData.MaxAsync(historicalData => historicalData.Date, cancellationToken).ConfigureAwait(false) : new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                startDate = hasData ? (await stockContext.HistoricalData.MaxAsync(historicalData => historicalData.Date, cancellationToken).ConfigureAwait(false)).AddDays(1) : new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             }
             if (endDate == null)
             {
@@ -41,7 +41,7 @@ namespace Tcc.DownloadData.Services
             var datesReadonlyCollection = dates.ToList().AsReadOnly();
             await historicalDataRepository.GetHistoricalDataAsync(tickers, datesReadonlyCollection, historicalType, maxParallelism, cancellationToken).ConfigureAwait(false);
             var lines = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            _linesChanged(logger, lines.ToString(CultureInfo.InvariantCulture), null);
+            _linesChanged(logger, lines.ToString(CultureInfo.InvariantCulture), arg3: null);
         }
     }
 }

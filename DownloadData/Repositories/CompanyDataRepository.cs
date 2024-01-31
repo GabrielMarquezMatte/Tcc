@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Options;
 using Tcc.DownloadData.Models.Options;
 using Tcc.DownloadData.Requests;
@@ -12,7 +13,6 @@ namespace Tcc.DownloadData.Repositories
 {
     public sealed class CompanyDataRepository(HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions)
     {
-        private readonly Channel<CompaniesResponse> CompaniesChannel = Channel.CreateUnbounded<CompaniesResponse>();
         private readonly Channel<CompanyResponse> CompanyChannel = Channel.CreateUnbounded<CompanyResponse>();
         private static Uri CreateUri<T>(Uri baseUri, T requestData)
         {
@@ -20,12 +20,12 @@ namespace Tcc.DownloadData.Repositories
             var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
             return new(baseUri + "/" + base64String);
         }
-        private async Task<CompaniesResponse?> FetchCompaniesAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
+        private async Task<CompaniesResponse?> FetchCompaniesAsync(CancellationToken cancellationToken)
         {
             CompaniesRequest request = new()
             {
-                PageNumber = pageNumber,
-                PageSize = pageSize,
+                PageNumber = -1,
+                PageSize = 120,
             };
             var url = CreateUri(urlOptions.Value.ListCompanies, request);
             using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
@@ -68,54 +68,29 @@ namespace Tcc.DownloadData.Repositories
         }
         private async Task ProcessCompaniesAsync(int maxParallelism = 10, CancellationToken cancellationToken = default)
         {
-            using SemaphoreSlim semaphore = new(maxParallelism);
-            List<Task> tasks = [];
-            await foreach (var companiesResponse in CompaniesChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            var response = await FetchCompaniesAsync(cancellationToken).ConfigureAwait(false);
+            if(response == null || response.Results == null)
             {
-                if (companiesResponse.Results == null)
-                {
-                    continue;
-                }
-                foreach (var result in companiesResponse.Results)
-                {
-                    var task = ProcessCompanyResponseAsync(result.CodeCvm, semaphore, cancellationToken);
-                    tasks.Add(task);
-                }
+                return;
+            }
+            using SemaphoreSlim semaphore = new(maxParallelism);
+            List<Task> tasks = new(response.Results.Count);
+            foreach (var result in response.Results)
+            {
+                var task = ProcessCompanyResponseAsync(result.CodeCvm, semaphore, cancellationToken);
+                tasks.Add(task);
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
             CompanyChannel.Writer.Complete();
         }
-        private async Task FetchAndProcessCompaniesAsync(CancellationToken cancellationToken)
-        {
-            int pageNumber = 1;
-            const int pageSize = 120;
-            var companiesResponse = await FetchCompaniesAsync(pageNumber, pageSize, cancellationToken).ConfigureAwait(false);
-            if (companiesResponse == null)
-            {
-                return;
-            }
-            await CompaniesChannel.Writer.WriteAsync(companiesResponse, cancellationToken).ConfigureAwait(false);
-            while (companiesResponse != null && companiesResponse.Page.PageNumber < companiesResponse.Page.TotalPages)
-            {
-                pageNumber++;
-                companiesResponse = await FetchCompaniesAsync(pageNumber, pageSize, cancellationToken).ConfigureAwait(false);
-                if (companiesResponse == null)
-                {
-                    continue;
-                }
-                await CompaniesChannel.Writer.WriteAsync(companiesResponse, cancellationToken).ConfigureAwait(false);
-            }
-            CompaniesChannel.Writer.Complete();
-        }
         public async IAsyncEnumerable<CompanyResponse> GetCompaniesAsync(int maxParallelism = 10, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            var implGetCompaniesTask = ProcessCompaniesAsync(maxParallelism, cancellationToken);
-            var implListCompaniesTask = FetchAndProcessCompaniesAsync(cancellationToken);
+            var task = ProcessCompaniesAsync(maxParallelism, cancellationToken);
             await foreach (var company in CompanyChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 yield return company;
             }
-            await Task.WhenAll(implGetCompaniesTask, implListCompaniesTask).ConfigureAwait(false);
+            await task.ConfigureAwait(false);
         }
     }
 }
