@@ -10,6 +10,7 @@ namespace Tcc.DownloadData.Data
         public DbSet<Ticker> Tickers { get; set; }
         public DbSet<Industry> Industries { get; set; }
         public DbSet<CompanyIndustry> CompanyIndustries { get; set; }
+        public DbSet<HistoricalData> HistoricalData { get; set; }
         private static bool CheckInterfaces(Type type)
         {
             var interfaces = type.GetInterfaces();
