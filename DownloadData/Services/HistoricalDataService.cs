@@ -1,12 +1,18 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Tcc.DownloadData.Data;
 using Tcc.DownloadData.Enums;
 using Tcc.DownloadData.Repositories;
 
 namespace Tcc.DownloadData.Services
 {
-    public sealed class HistoricalDataService(StockContext stockContext, HistoricalDataRepository historicalDataRepository)
+    public sealed class HistoricalDataService(StockContext stockContext, HistoricalDataRepository historicalDataRepository, ILogger<HistoricalDataService> logger)
     {
+        private static readonly Action<ILogger, string, Exception?> _linesChanged = LoggerMessage.Define<string>(
+            LogLevel.Information,
+            new EventId(1, "LinesChanged"),
+            "Changed {Lines} lines in the database");
         private static IEnumerable<DateTime> GetDates(DateTime startDate, DateTime endDate, HistoricalType historicalType)
         {
             return historicalType switch
@@ -32,8 +38,10 @@ namespace Tcc.DownloadData.Services
                 endDate = DateTime.Today;
             }
             var dates = GetDates(startDate.Value, endDate.Value, historicalType);
-            await historicalDataRepository.GetHistoricalDataAsync(tickers, dates, historicalType, maxParallelism, cancellationToken).ConfigureAwait(false);
-            await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            var datesReadonlyCollection = dates.ToList().AsReadOnly();
+            await historicalDataRepository.GetHistoricalDataAsync(tickers, datesReadonlyCollection, historicalType, maxParallelism, cancellationToken).ConfigureAwait(false);
+            var lines = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _linesChanged(logger, lines.ToString(CultureInfo.InvariantCulture), null);
         }
     }
 }

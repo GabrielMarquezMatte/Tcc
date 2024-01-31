@@ -1,9 +1,11 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tcc.DownloadData.Data;
 using Tcc.DownloadData.Entities;
@@ -13,9 +15,32 @@ using Tcc.DownloadData.Readers;
 
 namespace Tcc.DownloadData.Repositories
 {
-    public sealed class HistoricalDataRepository(StockContext stockContext, HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions)
+    public sealed class HistoricalDataRepository(StockContext stockContext, HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions, ILogger<HistoricalDataRepository> logger)
     {
         private readonly Channel<HistoricalData> channel = Channel.CreateUnbounded<HistoricalData>();
+        // Logger message definitions
+        private static readonly Action<ILogger, string, Exception?> _downloadFailed = LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1, "DownloadFailed"),
+            "Failed to download historical data for on {Date}");
+        private static readonly Action<ILogger, string, Exception?> _downloadSucceeded = LoggerMessage.Define<string>(
+            LogLevel.Information,
+            new EventId(2, "DownloadSucceeded"),
+            "Downloaded historical data on {Date}");
+        private static readonly Action<ILogger, string, Exception?> _finishedProcessing = LoggerMessage.Define<string>(
+            LogLevel.Information,
+            new EventId(3, "FinishedProcessing"),
+            "Finished processing historical data on {Date}");
+        private static void LogMessage(Action<ILogger, string, Exception?> action, ILogger logger, DateTime date, HistoricalType historicalType, Exception? exception = null)
+        {
+            action(logger, historicalType switch
+            {
+                HistoricalType.Day => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                HistoricalType.Month => date.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+                HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
+                _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
+            }, exception);
+        }
         private static string TypeToString(HistoricalType historicalType) => historicalType switch
         {
             HistoricalType.Day => "D",
@@ -56,8 +81,10 @@ namespace Tcc.DownloadData.Repositories
             using var zipArchive = await DownloadAsync(historicalType, date, cancellationToken).ConfigureAwait(false);
             if (zipArchive is null)
             {
+                LogMessage(_downloadFailed, logger, date, historicalType);
                 return;
             }
+            LogMessage(_downloadSucceeded, logger, date, historicalType);
             HistoricalFileReader reader = new(zipArchive);
             var historicalData = reader.ReadAsync(cancellationToken);
             await foreach (var data in historicalData.ConfigureAwait(false).WithCancellation(cancellationToken))
@@ -80,6 +107,7 @@ namespace Tcc.DownloadData.Repositories
                 };
                 await channel.Writer.WriteAsync(entity, cancellationToken).ConfigureAwait(false);
             }
+            LogMessage(_finishedProcessing, logger, date, historicalType);
         }
         private async Task ProcessFileSemaphoreAsync(SemaphoreSlim semaphore,
                                                      IReadOnlyDictionary<string, Ticker> tickers,
@@ -109,11 +137,24 @@ namespace Tcc.DownloadData.Repositories
             channel.Writer.Complete();
         }
         public async Task GetHistoricalDataAsync(IReadOnlyDictionary<string, Ticker> tickers,
-                                                 IEnumerable<DateTime> dates, HistoricalType historicalType,
+                                                 ReadOnlyCollection<DateTime> dates, HistoricalType historicalType,
                                                  int maxDegreeOfParallelism = 10,
                                                  CancellationToken cancellationToken = default)
         {
-            var historicalData = await stockContext.HistoricalData.Where(historicalData => dates.Contains(historicalData.Date)).ToDictionaryAsync(historicalData => (historicalData.Ticker!.StockTicker, historicalData.Date), cancellationToken).ConfigureAwait(false);
+            var startDate = dates.Min();
+            var endDate = dates.Max();
+            switch(historicalType)
+            {
+                case HistoricalType.Month:
+                    startDate = startDate.AddDays(-startDate.Day + 1);
+                    endDate = endDate.AddDays(-endDate.Day + 1).AddMonths(1).AddDays(-1);
+                    break;
+                case HistoricalType.Year:
+                    startDate = startDate.AddDays(-startDate.DayOfYear + 1);
+                    endDate = endDate.AddDays(-endDate.DayOfYear + 1).AddYears(1).AddDays(-1);
+                    break;
+            }
+            var historicalData = await stockContext.HistoricalData.Where(x => x.Date >= startDate && x.Date <= endDate).ToDictionaryAsync(historicalData => (historicalData.Ticker!.StockTicker, historicalData.Date), cancellationToken).ConfigureAwait(false);
             var task = ProcessAllFilesAsync(tickers, historicalType, dates, maxDegreeOfParallelism, cancellationToken);
             await foreach (var data in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {

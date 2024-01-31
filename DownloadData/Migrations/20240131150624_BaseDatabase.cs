@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DownloadData.Migrations
 {
     /// <inheritdoc />
-    public partial class AddHistoricalData : Migration
+    public partial class BaseDatabase : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
