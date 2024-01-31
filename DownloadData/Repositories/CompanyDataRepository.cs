@@ -20,11 +20,12 @@ namespace Tcc.DownloadData.Repositories
             var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
             return new(baseUri + "/" + base64String);
         }
-        private async Task<CompaniesResponse?> FetchCompaniesAsync(int pageNumber, CancellationToken cancellationToken)
+        private async Task<CompaniesResponse?> FetchCompaniesAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
         {
             CompaniesRequest request = new()
             {
                 PageNumber = pageNumber,
+                PageSize = pageSize,
             };
             var url = CreateUri(urlOptions.Value.ListCompanies, request);
             using var response = await httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
@@ -81,12 +82,14 @@ namespace Tcc.DownloadData.Repositories
                     tasks.Add(task);
                 }
             }
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             CompanyChannel.Writer.Complete();
         }
         private async Task FetchAndProcessCompaniesAsync(CancellationToken cancellationToken)
         {
             int pageNumber = 1;
-            var companiesResponse = await FetchCompaniesAsync(pageNumber, cancellationToken).ConfigureAwait(false);
+            const int pageSize = 120;
+            var companiesResponse = await FetchCompaniesAsync(pageNumber, pageSize, cancellationToken).ConfigureAwait(false);
             if (companiesResponse == null)
             {
                 return;
@@ -95,7 +98,7 @@ namespace Tcc.DownloadData.Repositories
             while (companiesResponse != null && companiesResponse.Page.PageNumber < companiesResponse.Page.TotalPages)
             {
                 pageNumber++;
-                companiesResponse = await FetchCompaniesAsync(pageNumber, cancellationToken).ConfigureAwait(false);
+                companiesResponse = await FetchCompaniesAsync(pageNumber, pageSize, cancellationToken).ConfigureAwait(false);
                 if (companiesResponse == null)
                 {
                     continue;
