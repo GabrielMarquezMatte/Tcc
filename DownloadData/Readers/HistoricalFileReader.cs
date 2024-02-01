@@ -31,7 +31,7 @@ namespace Tcc.DownloadData.Readers
                             (span[12] - '0') * 0.01;
         private static HistoricalDataResponse ProcessLine(ReadOnlySpan<char> span) => new()
         {
-            Ticker = span.Slice(12, 12).Trim().ToString(),
+            Ticker = span.Slice(12, 12).TrimEnd().ToString(),
             Date = ParseDate(span.Slice(2, 8)),
             Open = ParseDouble(span.Slice(56, 13)),
             High = ParseDouble(span.Slice(69, 13)),
