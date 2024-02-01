@@ -19,6 +19,10 @@ namespace Tcc.DownloadData.Repositories
     public sealed class HistoricalDataRepository(StockContext stockContext, HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions, ILogger<HistoricalDataRepository> logger)
     {
         private readonly Channel<HistoricalData> channel = Channel.CreateUnbounded<HistoricalData>();
+        private static readonly Action<ILogger, string, Exception?> _downloadStarted = LoggerMessage.Define<string>(
+            LogLevel.Information,
+            new EventId(0, "DownloadStarted"),
+            "Started downloading historical data on {Date}");
         private static readonly Action<ILogger, string, Exception?> _downloadFailed = LoggerMessage.Define<string>(
             LogLevel.Warning,
             new EventId(1, "DownloadFailed"),
@@ -27,10 +31,16 @@ namespace Tcc.DownloadData.Repositories
             LogLevel.Information,
             new EventId(2, "DownloadSucceeded"),
             "Downloaded historical data on {Date}");
-        private static readonly Action<ILogger, string, Exception?> _finishedProcessing = LoggerMessage.Define<string>(
+        private static readonly Action<ILogger, string, int, TimeSpan, Exception?> _finishedProcessing = LoggerMessage.Define<string, int, TimeSpan>(
             LogLevel.Information,
             new EventId(3, "FinishedProcessing"),
-            "Finished processing historical data on {Date}");
+            "Finished processing historical data on {Date}. Processed {Lines} lines in {Time}");
+        private static readonly Action<ILogger, int, TimeSpan, Exception?> _finishedProcessingAll = LoggerMessage.Define<int, TimeSpan>(
+            LogLevel.Information,
+            new EventId(4, "FinishedProcessingAll"),
+            "Finished processing all historical data. Processed {Lines} lines in {Time}");
+        private int _lines;
+        private TimeSpan _time;
         private static void LogMessage(Action<ILogger, string, Exception?> action, ILogger logger, DateTime date, HistoricalType historicalType, Exception? exception = null)
         {
             action(logger, DateToStringLog(historicalType, date), exception);
@@ -73,6 +83,7 @@ namespace Tcc.DownloadData.Repositories
         private async Task ProcessSingleFileAsync(IReadOnlyDictionary<string, Ticker> tickers, HistoricalType historicalType,
                                                   DateTime date, CancellationToken cancellationToken)
         {
+            LogMessage(_downloadStarted, logger, date, historicalType);
             using var zipArchive = await DownloadAsync(historicalType, date, cancellationToken).ConfigureAwait(false);
             if (zipArchive is null)
             {
@@ -102,7 +113,9 @@ namespace Tcc.DownloadData.Repositories
                 };
                 await channel.Writer.WriteAsync(entity, cancellationToken).ConfigureAwait(false);
             }
-            LogMessage(_finishedProcessing, logger, date, historicalType);
+            _lines += reader.Lines;
+            _time += reader.Time;
+            _finishedProcessing(logger, DateToStringLog(historicalType, date), reader.Lines, reader.Time, null);
         }
         private async Task ProcessFileSemaphoreAsync(SemaphoreSlim semaphore,
                                                      IReadOnlyDictionary<string, Ticker> tickers,
@@ -169,6 +182,7 @@ namespace Tcc.DownloadData.Repositories
                 historicalData.Add((data.Ticker!.StockTicker, data.Date), data);
             }
             await task.ConfigureAwait(false);
+            _finishedProcessingAll(logger, _lines, _time, null);
         }
     }
 }
