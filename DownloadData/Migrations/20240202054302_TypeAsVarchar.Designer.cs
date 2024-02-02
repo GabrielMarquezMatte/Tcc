@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Tcc.DownloadData.Data;
 
@@ -11,9 +12,11 @@ using Tcc.DownloadData.Data;
 namespace DownloadData.Migrations
 {
     [DbContext(typeof(StockContext))]
-    partial class StockContextModelSnapshot : ModelSnapshot
+    [Migration("20240202054302_TypeAsVarchar")]
+    partial class TypeAsVarchar
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -143,7 +146,7 @@ namespace DownloadData.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("VARCHAR(max)");
+                        .HasColumnType("VARCHAR");
 
                     b.HasKey("TickerId", "LastDate");
 

@@ -14,7 +14,7 @@ namespace Tcc.DownloadData.Data.Mapping
             builder.Property(s => s.LastDate).HasColumnType("DATE").IsRequired();
             builder.Property(s => s.SplitFactor).IsRequired();
             builder.Property(s => s.ApprovalDate).HasColumnType("DATE").IsRequired();
-            builder.Property(s => s.Type).IsRequired();
+            builder.Property(s => s.Type).HasColumnType("VARCHAR(max)").IsRequired();
             builder.HasOne(s => s.Ticker).WithMany(t => t.Splits).HasForeignKey(s => s.TickerId);
         }
     }

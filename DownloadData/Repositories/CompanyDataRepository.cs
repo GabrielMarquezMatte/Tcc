@@ -118,7 +118,7 @@ namespace Tcc.DownloadData.Repositories
                 {
                     return;
                 }
-                if (lastSplitDate - DateTime.Now > TimeSpan.FromDays(-2))
+                if (lastSplitDate - DateTime.Now > TimeSpan.FromDays(-2) || company.OtherCodes?.Count() <= 0)
                 {
                     await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
                     return;
