@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Tcc.DownloadData.Enums;
 
 namespace Tcc.DownloadData.Responses.SplitSubscription
 {

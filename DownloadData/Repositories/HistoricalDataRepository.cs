@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
@@ -146,12 +145,11 @@ namespace Tcc.DownloadData.Repositories
         }
         public async Task GetHistoricalDataAsync(IReadOnlyDictionary<string, Ticker> tickers,
                                                  ReadOnlyCollection<DateTime> dates, HistoricalType historicalType,
-                                                 int maxDegreeOfParallelism = 10,
-                                                 CancellationToken cancellationToken = default)
+                                                 int maxDegreeOfParallelism, CancellationToken cancellationToken)
         {
             var startDate = dates.Min();
             var endDate = dates.Max();
-            switch(historicalType)
+            switch (historicalType)
             {
                 case HistoricalType.Month:
                     startDate = startDate.AddDays(-startDate.Day + 1);

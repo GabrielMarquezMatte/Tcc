@@ -25,7 +25,7 @@ namespace Tcc.DownloadData.Services
             };
         }
         public async Task ProcessFilesAsync(DateTime? startDate, DateTime? endDate, HistoricalType historicalType,
-                                            int maxParallelism = 10, CancellationToken cancellationToken = default)
+                                            int maxParallelism, CancellationToken cancellationToken)
         {
             var tickers = await stockContext.Tickers.ToDictionaryAsync(ticker => ticker.StockTicker, cancellationToken).ConfigureAwait(false);
             var hasData = await stockContext.HistoricalData.AnyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);

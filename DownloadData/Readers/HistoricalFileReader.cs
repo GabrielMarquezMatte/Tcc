@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
@@ -16,19 +15,23 @@ namespace Tcc.DownloadData.Readers
         {
             return new((span[0] - '0') * 1000 + (span[1] - '0') * 100 + (span[2] - '0') * 10 + (span[3] - '0'), (span[4] - '0') * 10 + (span[5] - '0'), (span[6] - '0') * 10 + (span[7] - '0'), 0, 0, 0, DateTimeKind.Unspecified);
         }
-        private static double ParseDouble(ReadOnlySpan<char> span) => (span[0] - '0') * 10_000_000_000.0 +
-                            (span[1] - '0') * 1_000_000_000.0 +
-                            (span[2] - '0') * 100_000_000.0 +
-                            (span[3] - '0') * 10_000_000.0 +
-                            (span[4] - '0') * 1_000_000.0 +
-                            (span[5] - '0') * 100_000.0 +
-                            (span[6] - '0') * 10_000.0 +
-                            (span[7] - '0') * 1_000.0 +
-                            (span[8] - '0') * 100.0 +
-                            (span[9] - '0') * 10.0 +
-                            (span[10] - '0') * 1.0 +
-                            (span[11] - '0') * 0.1 +
-                            (span[12] - '0') * 0.01;
+        private static double ParseDouble(ReadOnlySpan<char> span)
+        {
+            long result = (span[0] - '0') * 1_000_000_000_000L +
+                          (span[1] - '0') * 100_000_000_000L +
+                          (span[2] - '0') * 10_000_000_000L +
+                          (span[3] - '0') * 1_000_000_000L +
+                          (span[4] - '0') * 100_000_000L +
+                          (span[5] - '0') * 10_000_000L +
+                          (span[6] - '0') * 1_000_000L +
+                          (span[7] - '0') * 100_000L +
+                          (span[8] - '0') * 10_000L +
+                          (span[9] - '0') * 1_000L +
+                          (span[10] - '0') * 100L +
+                          (span[11] - '0') * 10L +
+                          (span[12] - '0');
+            return result * 0.01;
+        }
         private static HistoricalDataResponse ProcessLine(ReadOnlySpan<char> span) => new()
         {
             Ticker = span.Slice(12, 12).TrimEnd().ToString(),
@@ -66,7 +69,7 @@ namespace Tcc.DownloadData.Readers
             var stopWatch = Stopwatch.StartNew();
             foreach (var entry in zipArchive.Entries)
             {
-                await foreach (var data in ProcessFileAsync(entry, cancellationToken).ConfigureAwait(false))
+                await foreach (var data in ProcessFileAsync(entry, cancellationToken).ConfigureAwait(false).WithCancellation(cancellationToken))
                 {
                     Lines++;
                     await _channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);

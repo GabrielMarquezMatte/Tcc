@@ -1,5 +1,3 @@
-using Tcc.DownloadData.Enums;
-
 namespace Tcc.DownloadData.Entities
 {
     public sealed class Split
