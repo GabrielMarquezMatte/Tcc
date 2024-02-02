@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Tcc.DownloadData.Responses.SplitSubscription;
 
 namespace Tcc.DownloadData.Responses
 {
@@ -19,8 +20,7 @@ namespace Tcc.DownloadData.Responses
         [JsonPropertyName("hasEmissions")]
         public bool HasEmissions { get; set; }
         [JsonPropertyName("otherCodes")]
-#pragma warning disable CA2227 // Collection properties should be read only
-        public ICollection<CompanyCodes>? OtherCodes { get; set; }
-#pragma warning restore CA2227 // Collection properties should be read only
+        public IEnumerable<CompanyCodes>? OtherCodes { get; set; }
+        public SplitSubscriptionResponse? SplitSubscription { get; set; }
     }
 }

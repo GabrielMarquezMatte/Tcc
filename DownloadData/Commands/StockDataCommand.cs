@@ -20,10 +20,10 @@ namespace Tcc.DownloadData.Commands
             _commandTime(logger, stopwatch.Elapsed, arg3: null);
         }
         [Command("company-data", Description = "Download company data from the internet and save it to the database.")]
-        public Task ExecuteAsync([Option('j')] int maxParallelism = 10, [Ignore] CancellationToken cancellationToken = default)
+        public Task ExecuteAsync(CompanyDataArgs companyDataArgs, [Ignore] CancellationToken cancellationToken)
         {
             return ExecuteCommandAsync(
-                token => companyDataService.SaveCompaniesAsync(maxParallelism, token),
+                token => companyDataService.SaveCompaniesAsync(companyDataArgs, token),
                 logger,
                 cancellationToken);
         }
