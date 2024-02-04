@@ -6,6 +6,7 @@ using Tcc.DownloadData.Entities;
 using Tcc.DownloadData.Models.Arguments;
 using Tcc.DownloadData.Repositories;
 using Tcc.DownloadData.Responses;
+using Tcc.DownloadData.Responses.Dividends;
 using Tcc.DownloadData.Responses.SplitSubscription;
 
 namespace Tcc.DownloadData.Services
@@ -22,6 +23,11 @@ namespace Tcc.DownloadData.Services
             new EventId(2, "CompanyHasBeenSaved"),
             "Company {Name}({Cnpj}) has been saved"
         );
+        private static readonly Action<ILogger, int, Exception?> _changesSaved = LoggerMessage.Define<int>(
+            LogLevel.Information,
+            new EventId(3, "ChangesSaved"),
+            "{Changes} changes saved"
+        );
         private async IAsyncEnumerable<Industry> SaveIndustryAsync(CompanyResponse companyResponse,
                                                                    Dictionary<string, Industry> industries,
                                                                    [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -29,8 +35,7 @@ namespace Tcc.DownloadData.Services
             var industrySplit = companyResponse.IndustryClassification.Split(" / ").Distinct(StringComparer.OrdinalIgnoreCase);
             foreach (var industryName in industrySplit)
             {
-                var industry = industries.GetValueOrDefault(industryName);
-                if (industry != null)
+                if(industries.TryGetValue(industryName, out var industry))
                 {
                     yield return industry;
                     continue;
@@ -46,8 +51,7 @@ namespace Tcc.DownloadData.Services
         }
         private async Task<Company> SaveCompanyAsync(CompanyResponse companyResponse, Dictionary<string, Company> companies, CancellationToken cancellationToken)
         {
-            var company = companies.GetValueOrDefault(companyResponse.Cnpj);
-            if (company != null)
+            if(companies.TryGetValue(companyResponse.Cnpj, out var company))
             {
                 return company;
             }
@@ -65,12 +69,12 @@ namespace Tcc.DownloadData.Services
         }
         private async Task SaveCompanyIndustriesAsync(Company company, Industry industry, Dictionary<(string, string), CompanyIndustry> companyIndustries, CancellationToken cancellationToken)
         {
-            var companyIndustry = companyIndustries.GetValueOrDefault((company.Cnpj, industry.Name));
-            if (companyIndustry != null)
+            var companyIndustryKey = (company.Cnpj, industry.Name);
+            if(companyIndustries.ContainsKey(companyIndustryKey))
             {
                 return;
             }
-            companyIndustry = new()
+            CompanyIndustry companyIndustry = new()
             {
                 Company = company,
                 Industry = industry,
@@ -82,8 +86,7 @@ namespace Tcc.DownloadData.Services
         {
             foreach (var otherCode in codes.Where(c => !string.IsNullOrEmpty(c.Code) && !string.IsNullOrEmpty(c.Isin)).DistinctBy(x => x.Code))
             {
-                var ticker = tickers.GetValueOrDefault(otherCode.Code);
-                if (ticker != null)
+                if(tickers.TryGetValue(otherCode.Code, out var ticker))
                 {
                     yield return ticker;
                     continue;
@@ -116,7 +119,7 @@ namespace Tcc.DownloadData.Services
         {
             foreach (var split in splits)
             {
-                if(!string.Equals(split.AssetIssued, ticker.Isin, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(split.AssetIssued, ticker.Isin, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -137,13 +140,42 @@ namespace Tcc.DownloadData.Services
                 splitsInDb[splitKey] = splitEntity;
             }
         }
+        private async Task ProcessDividendsAsync(Ticker ticker, IEnumerable<DividendsResult> dividends,
+                                                 Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                 CancellationToken cancellationToken)
+        {
+            foreach (var dividend in dividends)
+            {
+                if (!string.Equals(dividend.StockTicker, ticker.StockTicker, StringComparison.OrdinalIgnoreCase) || dividend.ApprovalDate == null || dividend.PriorExDate == null)
+                {
+                    continue;
+                }
+                var dividendKey = (ticker, dividend.ApprovalDate.Value);
+                if (dividendsInDb.ContainsKey(dividendKey))
+                {
+                    continue;
+                }
+                Dividend dividendEntity = new()
+                {
+                    Ticker = ticker,
+                    ApprovalDate = dividend.ApprovalDate.Value,
+                    PriorExDate = dividend.PriorExDate.Value,
+                    ClosePrice = dividend.ClosePrice,
+                    DividendType = dividend.DividendType,
+                    DividendsPercentage = dividend.DividendsPercentage,
+                    DividendsValue = dividend.DividendsValue,
+                };
+                await stockContext.Dividends.AddAsync(dividendEntity, cancellationToken).ConfigureAwait(false);
+                dividendsInDb[dividendKey] = dividendEntity;
+            }
+        }
         private async Task ProcessSubscriptionsAsync(Ticker ticker, IEnumerable<SubscriptionResponse> subscriptions,
                                                     Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
                                                     CancellationToken cancellationToken)
         {
             foreach (var subscription in subscriptions)
             {
-                if(!string.Equals(subscription.AssetIssued, ticker.Isin, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(subscription.AssetIssued, ticker.Isin, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -164,47 +196,62 @@ namespace Tcc.DownloadData.Services
                 subscriptionsInDb[subscriptionKey] = subscriptionEntity;
             }
         }
+        private async Task ProcessFinancialEventsAsync(Ticker ticker,
+                                                       CompanyResponse companyResponse,
+                                                       Dictionary<(Ticker, DateTime), Split> splitsInDb,
+                                                       Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
+                                                       Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                       CancellationToken cancellationToken)
+        {
+            if (companyResponse.SplitSubscription != null)
+            {
+                await ProcessSplitsAsync(ticker, companyResponse.SplitSubscription.Splits, splitsInDb, cancellationToken).ConfigureAwait(false);
+                await ProcessSubscriptionsAsync(ticker, companyResponse.SplitSubscription.Subscriptions, subscriptionsInDb, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (companyResponse.Dividends != null)
+            {
+                await ProcessDividendsAsync(ticker, companyResponse.Dividends, dividendsInDb, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        private async Task ProcessSingleCompanyResponseAsync(CompanyResponse companyResponse,
+                                                             Dictionary<string, Company> companiesInDb,
+                                                             Dictionary<string, Ticker> tickersInDb,
+                                                             Dictionary<string, Industry> industriesInDb,
+                                                             Dictionary<(string, string), CompanyIndustry> companyIndustriesInDb,
+                                                             Dictionary<(Ticker, DateTime), Split> splitsInDb,
+                                                             Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
+                                                             Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                             CancellationToken cancellationToken)
+        {
+            var company = await SaveCompanyAsync(companyResponse, companiesInDb, cancellationToken).ConfigureAwait(false);
+            await ProcessIndustriesAsync(company, companyResponse, industriesInDb, companyIndustriesInDb, cancellationToken).ConfigureAwait(false);
+            if (companyResponse.OtherCodes == null)
+            {
+                _companyHasNoTickers(logger, companyResponse.CompanyName, companyResponse.Cnpj, null);
+                return;
+            }
+            await foreach (var ticker in SaveTickersAsync(company, tickersInDb, companyResponse.OtherCodes, cancellationToken).ConfigureAwait(false))
+            {
+                await ProcessFinancialEventsAsync(ticker, companyResponse, splitsInDb, subscriptionsInDb, dividendsInDb, cancellationToken).ConfigureAwait(false);
+            }
+            _companyHasBeenSaved(logger, companyResponse.CompanyName, companyResponse.Cnpj, null);
+        }
         private async Task ProcessCompanyResponsesAsync(Dictionary<string, Company> companiesInDb,
                                                         Dictionary<string, Ticker> tickersInDb,
                                                         Dictionary<string, Industry> industriesInDb,
                                                         Dictionary<(string, string), CompanyIndustry> companyIndustriesInDb,
                                                         Dictionary<(Ticker, DateTime), Split> splitsInDb,
                                                         Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
+                                                        Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
                                                         CompanyDataArgs companyDataArgs,
                                                         CancellationToken cancellationToken)
         {
-            var maxSplitDates = await stockContext.Splits
-                .GroupBy(s => s.Ticker!.Company!.CvmCode)
-                .Select(g => new {CvmCode = g.Key, MaxDate = g.Max(s => s.LastDate)})
-                .ToListAsync(cancellationToken).ConfigureAwait(false);
-            var maxSubscriptionDates = await stockContext.Subscriptions
-                .GroupBy(s => s.Ticker!.Company!.CvmCode)
-                .Select(g => new {CvmCode = g.Key, MaxDate = g.Max(s => s.LastDate)})
-                .ToListAsync(cancellationToken).ConfigureAwait(false);
-            var maxDates = maxSplitDates.Concat(maxSubscriptionDates).GroupBy(x => x.CvmCode)
-                .Select(g => new {CvmCode = g.Key, MaxDate = g.Max(x => x.MaxDate)})
-                .ToList();
-            await foreach (var companyResponse in companyDataRepository.GetCompaniesAsync(companyDataArgs, maxDates.Select(x => (x.CvmCode, x.MaxDate)), cancellationToken).ConfigureAwait(false).WithCancellation(cancellationToken))
+            await foreach (var companyResponse in companyDataRepository.GetCompaniesAsync(companyDataArgs, cancellationToken).ConfigureAwait(false))
             {
-                var company = await SaveCompanyAsync(companyResponse, companiesInDb, cancellationToken).ConfigureAwait(false);
-                await ProcessIndustriesAsync(company, companyResponse, industriesInDb, companyIndustriesInDb, cancellationToken).ConfigureAwait(false);
-                if (companyResponse.OtherCodes == null)
-                {
-                    _companyHasNoTickers(logger, companyResponse.CompanyName, companyResponse.Cnpj, arg4: null);
-                    continue;
-                }
-                await foreach (var ticker in SaveTickersAsync(company, tickersInDb, companyResponse.OtherCodes, cancellationToken).ConfigureAwait(false).WithCancellation(cancellationToken))
-                {
-                    if (companyDataArgs.Splits && companyResponse.SplitSubscription != null && companyResponse.SplitSubscription.Splits != null)
-                    {
-                        await ProcessSplitsAsync(ticker, companyResponse.SplitSubscription.Splits, splitsInDb, cancellationToken).ConfigureAwait(false);
-                    }
-                    if (companyDataArgs.Splits && companyResponse.SplitSubscription != null && companyResponse.SplitSubscription.Subscriptions != null)
-                    {
-                        await ProcessSubscriptionsAsync(ticker, companyResponse.SplitSubscription.Subscriptions, subscriptionsInDb, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                _companyHasBeenSaved(logger, companyResponse.CompanyName, companyResponse.Cnpj, arg4: null);
+                await ProcessSingleCompanyResponseAsync(companyResponse, companiesInDb, tickersInDb, industriesInDb,
+                                                        companyIndustriesInDb, splitsInDb, subscriptionsInDb,
+                                                        dividendsInDb, cancellationToken).ConfigureAwait(false);
             }
         }
         public async Task SaveCompaniesAsync(CompanyDataArgs companyDataArgs, CancellationToken cancellationToken)
@@ -215,8 +262,12 @@ namespace Tcc.DownloadData.Services
             var companyIndustriesInDb = await stockContext.CompanyIndustries.ToDictionaryAsync(ci => (ci.Company!.Cnpj, ci.Industry!.Name), cancellationToken).ConfigureAwait(false);
             var splitsInDb = await stockContext.Splits.ToDictionaryAsync(s => (s.Ticker!, s.LastDate), cancellationToken).ConfigureAwait(false);
             var subscriptionsInDb = await stockContext.Subscriptions.ToDictionaryAsync(s => (s.Ticker!, s.LastDate), cancellationToken).ConfigureAwait(false);
-            await ProcessCompanyResponsesAsync(companiesInDb, tickersInDb, industriesInDb, companyIndustriesInDb, splitsInDb, subscriptionsInDb, companyDataArgs, cancellationToken).ConfigureAwait(false);
-            await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            var dividendsInDb = await stockContext.Dividends.ToDictionaryAsync(d => (d.Ticker!, d.ApprovalDate), cancellationToken).ConfigureAwait(false);
+            await ProcessCompanyResponsesAsync(companiesInDb, tickersInDb, industriesInDb, companyIndustriesInDb,
+                                               splitsInDb, subscriptionsInDb, dividendsInDb, companyDataArgs,
+                                               cancellationToken).ConfigureAwait(false);
+            var changes = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _changesSaved(logger, changes, null);
         }
     }
 }

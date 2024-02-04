@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Tcc.DownloadData.Converters;
 
 namespace Tcc.DownloadData.Responses.SplitSubscription
 {
@@ -6,12 +7,11 @@ namespace Tcc.DownloadData.Responses.SplitSubscription
     {
         [JsonPropertyName("assetIssued")]
         public required string AssetIssued { get; set; }
-        // The double have "," as decimal separator
-        [JsonPropertyName("percentage")]
+        [JsonPropertyName("percentage"), JsonConverter(typeof(DoubleConverter))]
         public double Percentage { get; set; }
-        [JsonPropertyName("priceUnit")]
+        [JsonPropertyName("priceUnit"), JsonConverter(typeof(DoubleConverter))]
         public double PriceUnit { get; set; }
-        [JsonPropertyName("approvedOn")]
+        [JsonPropertyName("approvedOn"), JsonConverter(typeof(DateConverter))]
         public DateTime ApprovalDate { get; set; }
         [JsonPropertyName("lastDatePrior")]
         public DateTime LastDate { get; set; }

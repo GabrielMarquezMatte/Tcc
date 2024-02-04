@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Tcc.DownloadData.Responses.Dividends;
 using Tcc.DownloadData.Responses.SplitSubscription;
 
 namespace Tcc.DownloadData.Responses
@@ -19,8 +20,11 @@ namespace Tcc.DownloadData.Responses
         public bool HasBdrs { get; set; }
         [JsonPropertyName("hasEmissions")]
         public bool HasEmissions { get; set; }
+        [JsonPropertyName("tradingName")]
+        public required string TradingName { get; set; }
         [JsonPropertyName("otherCodes")]
         public IEnumerable<CompanyCodes>? OtherCodes { get; set; }
         public SplitSubscriptionResponse? SplitSubscription { get; set; }
+        public IEnumerable<DividendsResult>? Dividends { get; set; }
     }
 }

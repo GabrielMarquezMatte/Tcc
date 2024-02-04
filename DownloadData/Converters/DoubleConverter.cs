@@ -11,7 +11,7 @@ namespace Tcc.DownloadData.Converters
         {
             JsonTokenType.String => double.TryParse(reader.GetString(), NumberStyles.AllowThousands | NumberStyles.Float, Culture, out double result) ? result : throw new JsonException($"Invalid double value: {reader.GetString()}"),
             JsonTokenType.Number => reader.GetDouble(),
-            _ => throw new JsonException($"Invalid double value: {reader.GetString()}"),
+            _ => 0,
         };
         public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
         {

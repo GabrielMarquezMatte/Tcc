@@ -10,5 +10,6 @@ namespace Tcc.DownloadData.Entities
         public ICollection<HistoricalData>? HistoricalData { get; }
         public ICollection<Subscription>? Subscriptions { get; }
         public ICollection<Split>? Splits { get; }
+        public ICollection<Dividend>? Dividends { get; }
     }
 }

@@ -6,5 +6,6 @@ namespace Tcc.DownloadData.Models.Options
         public required Uri ListCompanies { get; set; }
         public required Uri HistoricalData { get; set; }
         public required Uri SplitSubscription { get; set; }
+        public required Uri Dividends { get; set; }
     }
 }

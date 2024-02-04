@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Tcc.DownloadData.Converters;
 
 namespace Tcc.DownloadData.Responses.SplitSubscription
 {
@@ -8,9 +9,9 @@ namespace Tcc.DownloadData.Responses.SplitSubscription
         public required string AssetIssued { get; set; }
         [JsonPropertyName("lastDatePrior")]
         public DateTime LastDate { get; set; }
-        [JsonPropertyName("factor")]
+        [JsonPropertyName("factor"), JsonConverter(typeof(DoubleConverter))]
         public double SplitFactor { get; set; }
-        [JsonPropertyName("approvedOn")]
+        [JsonPropertyName("approvedOn"), JsonConverter(typeof(DateConverter))]
         public DateTime ApprovalDate { get; set; }
         [JsonPropertyName("label")]
         public string Type { get; set; } = string.Empty;

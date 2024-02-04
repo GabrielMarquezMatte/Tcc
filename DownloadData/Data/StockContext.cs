@@ -13,6 +13,7 @@ namespace Tcc.DownloadData.Data
         public DbSet<HistoricalData> HistoricalData { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Split> Splits { get; set; }
+        public DbSet<Dividend> Dividends { get; set; }
         private static bool CheckInterfaces(Type type)
         {
             var interfaces = type.GetInterfaces();
