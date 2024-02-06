@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Cocona;
 using DownloadData.Enums;
 
@@ -10,7 +11,7 @@ namespace DownloadData.Models.Arguments
         public DateTime? StartDate { get; set; } = null;
         [Option('e', Description = "The end date for the historical data.")]
         [HasDefaultValue]
-        public DateTime? EndDate { get; set; } = null;
+        public DateTime EndDate { get; set; } = DateTime.Now;
         [Option('t', Description = "The type of historical data to download.")]
         [HasDefaultValue]
         public HistoricalType HistoricalType { get; set; } = HistoricalType.Day;

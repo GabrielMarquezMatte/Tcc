@@ -5,6 +5,7 @@ using DownloadData.Data;
 using DownloadData.Enums;
 using DownloadData.Repositories;
 using DownloadData.ValueObjects;
+using DownloadData.Models.Arguments;
 
 namespace DownloadData.Services
 {
@@ -25,26 +26,21 @@ namespace DownloadData.Services
                 _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
             };
         }
-        public async Task ProcessFilesAsync(DateTime? startDate, DateTime? endDate, HistoricalType historicalType,
-                                            int maxParallelism, CancellationToken cancellationToken)
+        public async Task ProcessFilesAsync(HistoricalDataArgs historicalDataArgs, CancellationToken cancellationToken)
         {
             var tickers = await stockContext.Tickers.ToDictionaryAsync(ticker => new TickerKey(ticker.StockTicker), cancellationToken).ConfigureAwait(false);
             var hasData = await stockContext.HistoricalData.AnyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (startDate == null)
+            if (historicalDataArgs.StartDate == null)
             {
-                startDate = hasData ? (await stockContext.HistoricalData.MaxAsync(historicalData => historicalData.Date, cancellationToken).ConfigureAwait(false)).AddDays(1) : new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                historicalDataArgs.StartDate = hasData ? (await stockContext.HistoricalData.MaxAsync(historicalData => historicalData.Date, cancellationToken).ConfigureAwait(false)).AddDays(1) : new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             }
-            if (endDate == null)
-            {
-                endDate = DateTime.Today;
-            }
-            var dates = GetDates(startDate.Value, endDate.Value, historicalType);
+            var dates = GetDates(historicalDataArgs.StartDate.Value, historicalDataArgs.EndDate, historicalDataArgs.HistoricalType);
             var datesReadonlyCollection = dates.ToList().AsReadOnly();
             if(datesReadonlyCollection.Count == 0)
             {
                 return;
             }
-            await historicalDataRepository.GetHistoricalDataAsync(tickers, datesReadonlyCollection, historicalType, maxParallelism, cancellationToken).ConfigureAwait(false);
+            await historicalDataRepository.GetHistoricalDataAsync(tickers, datesReadonlyCollection, historicalDataArgs.HistoricalType, historicalDataArgs.MaxParallelism, cancellationToken).ConfigureAwait(false);
             var lines = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _linesChanged(logger, lines.ToString(CultureInfo.InvariantCulture), arg3: null);
         }

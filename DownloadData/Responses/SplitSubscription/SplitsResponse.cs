@@ -7,7 +7,7 @@ namespace DownloadData.Responses.SplitSubscription
     {
         [JsonPropertyName("assetIssued")]
         public required string AssetIssued { get; set; }
-        [JsonPropertyName("lastDatePrior")]
+        [JsonPropertyName("lastDatePrior"), JsonConverter(typeof(DateConverter))]
         public DateTime LastDate { get; set; }
         [JsonPropertyName("factor"), JsonConverter(typeof(DoubleConverter))]
         public double SplitFactor { get; set; }

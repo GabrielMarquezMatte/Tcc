@@ -31,7 +31,7 @@ namespace DownloadData.Commands
         public Task ExecuteAsync(HistoricalDataArgs args, [Ignore] CancellationToken cancellationToken)
         {
             return ExecuteCommandAsync(
-                token => historicalDataService.ProcessFilesAsync(args.StartDate, args.EndDate, args.HistoricalType, args.MaxParallelism, token),
+                token => historicalDataService.ProcessFilesAsync(args, token),
                 logger,
                 cancellationToken);
         }

@@ -12,6 +12,7 @@ using DownloadData.Responses;
 using DownloadData.Responses.Companies;
 using DownloadData.Responses.Dividends;
 using DownloadData.Responses.SplitSubscription;
+using DownloadData.Converters;
 
 namespace DownloadData.Repositories
 {
@@ -29,6 +30,10 @@ namespace DownloadData.Repositories
             LogLevel.Information,
             new EventId(3, "FetchSplitSubscription"),
             "Fetched split subscription for company {IssuingCompany}");
+        private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+        {
+            Converters = { new DateConverter(), new DoubleConverter()},
+        };
         private readonly Channel<CompanyResponse> CompanyChannel = Channel.CreateUnbounded<CompanyResponse>();
         private static Uri CreateUri<T>(Uri baseUri, T requestData)
         {
@@ -36,7 +41,7 @@ namespace DownloadData.Repositories
             var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
             return new(baseUri + "/" + base64String);
         }
-        private async Task<T?> FetchDataAsync<T>(Uri uri, SemaphoreSlim semaphore, CancellationToken cancellationToken)
+        private async Task<T?> FetchDataAsync<T>(Uri uri, SemaphoreSlim semaphore, JsonSerializerOptions? jsonSerializer, CancellationToken cancellationToken)
         {
             await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -45,6 +50,10 @@ namespace DownloadData.Repositories
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength <= 10)
                 {
                     return default;
+                }
+                if(jsonSerializer != null)
+                {
+                    return await response.Content.ReadFromJsonAsync<T>(jsonSerializer, cancellationToken).ConfigureAwait(false);
                 }
                 return await response.Content.ReadFromJsonAsync<T>(cancellationToken: cancellationToken).ConfigureAwait(false);
             }
@@ -77,7 +86,7 @@ namespace DownloadData.Repositories
         {
             CompaniesRequest request = new();
             var url = CreateUri(urlOptions.Value.ListCompanies, request);
-            return FetchDataAsync<CompaniesResponse>(url, semaphoreSlim, cancellationToken);
+            return FetchDataAsync<CompaniesResponse>(url, semaphoreSlim, null, cancellationToken);
         }
         private async Task<IEnumerable<SplitSubscriptionResponse>?> FetchSplitSubscriptionAsync(string issuingCompany, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
@@ -88,8 +97,8 @@ namespace DownloadData.Repositories
             var url = CreateUri(urlOptions.Value.SplitSubscription, request);
             _startFetchSplitSubscription(logger, issuingCompany, null);
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cancellationTokenSource.CancelAfter(5000);
-            var data = await FetchDataAsync<IEnumerable<SplitSubscriptionResponse>>(url, semaphore, cancellationTokenSource.Token).ConfigureAwait(false);
+            cancellationTokenSource.CancelAfter(50000);
+            var data = await FetchDataAsync<IEnumerable<SplitSubscriptionResponse>>(url, semaphore, JsonSerializerOptions, cancellationTokenSource.Token).ConfigureAwait(false);
             _fetchSplitSubscription(logger, issuingCompany, null);
             return data;
         }
@@ -97,7 +106,7 @@ namespace DownloadData.Repositories
         {
             CompanyRequest request = new() { CodeCvm = codeCvm };
             var url = CreateUri(urlOptions.Value.CompanyDetails, request);
-            return FetchDataAsync<CompanyResponse>(url, semaphore, cancellationToken);
+            return FetchDataAsync<CompanyResponse>(url, semaphore, null, cancellationToken);
         }
         private Task<DividendsResponse?> FetchDividendsAsync(string tradingName, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
@@ -105,7 +114,7 @@ namespace DownloadData.Repositories
             var url = CreateUri(urlOptions.Value.Dividends, request);
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cancellationTokenSource.CancelAfter(5000);
-            return FetchDataAsync<DividendsResponse>(url, semaphore, cancellationTokenSource.Token);
+            return FetchDataAsync<DividendsResponse>(url, semaphore, JsonSerializerOptions, cancellationTokenSource.Token);
         }
         private static bool ShouldProcessCompany(CompanyResponse? company)
         {
@@ -167,11 +176,7 @@ namespace DownloadData.Repositories
                 var task = ProcessSplitSubscriptionAsync(company, semaphore, cancellationToken);
                 tasks.Add(task);
             }
-            if (companyDataArgs.CompaniesDividends.Any(x => company.OtherCodes.Any(code => string.Equals(code.Code, x, StringComparison.Ordinal))))
-            {
-                var task = ProcessDividendsAsync(company, semaphore, cancellationToken);
-                tasks.Add(task);
-            }
+            tasks.Add(ProcessDividendsAsync(company, semaphore, cancellationToken));
             await Task.WhenAll(tasks).ConfigureAwait(false);
             await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
         }
