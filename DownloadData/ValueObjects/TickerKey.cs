@@ -17,16 +17,13 @@ namespace Tcc.DownloadData.ValueObjects
         public override readonly int GetHashCode() => _hashCode;
         private static int ComputeHashCode(ReadOnlySpan<char> value)
         {
-            unchecked
+            const int prime = 31;
+            int hash = 0;
+            for(int i = 0; i < value.Length; i++)
             {
-                int hash = 23;
-                for (int i = 0; i < value.Length; i++)
-                {
-                    hash = (hash * 31) + value[i];
-                    hash = (hash << 5) - hash + value[i];
-                }
-                return hash;
+                hash = (hash * prime + value[i]) % int.MaxValue;
             }
+            return hash;
         }
         public static implicit operator TickerKey(string value) => new(value);
         public static implicit operator TickerKey(ReadOnlySpan<char> value) => new(value);
