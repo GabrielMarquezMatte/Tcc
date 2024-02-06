@@ -1,14 +1,17 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Channels;
+using Tcc.DownloadData.Entities;
 using Tcc.DownloadData.Responses;
+using Tcc.DownloadData.ValueObjects;
 
 namespace Tcc.DownloadData.Readers
 {
-    public sealed class HistoricalFileReader(ZipArchive zipArchive)
+    public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers)
     {
-        private readonly Channel<HistoricalDataResponse> _channel = Channel.CreateUnbounded<HistoricalDataResponse>();
+        private readonly Channel<HistoricalData> _channel = Channel.CreateUnbounded<HistoricalData>();
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
         private static DateTime ParseDate(ReadOnlySpan<char> span)
@@ -32,9 +35,9 @@ namespace Tcc.DownloadData.Readers
                           (span[12] - '0');
             return result * 0.01;
         }
-        private static HistoricalDataResponse ProcessLine(ReadOnlySpan<char> span) => new()
+        private static HistoricalDataResponse ParseLine(ReadOnlySpan<char> span) => new()
         {
-            Ticker = span.Slice(12, 12).TrimEnd().ToString(),
+            Ticker = span.Slice(12, 12).TrimEnd(),
             Date = ParseDate(span.Slice(2, 8)),
             Open = ParseDouble(span.Slice(56, 13)),
             High = ParseDouble(span.Slice(69, 13)),
@@ -48,18 +51,48 @@ namespace Tcc.DownloadData.Readers
         {
             return span.Length == 245 && !span.StartsWith("99C", StringComparison.Ordinal) && !span.StartsWith("00C", StringComparison.Ordinal);
         }
-        private static async IAsyncEnumerable<HistoricalDataResponse> ProcessFileAsync(ZipArchiveEntry entry, [EnumeratorCancellation] CancellationToken cancellationToken)
+        private HistoricalData? ProcessLine(ReadOnlySpan<char> span)
+        {
+            if (!CheckLine(span))
+            {
+                return null;
+            }
+            var response = ParseLine(span);
+            if (!tickers.TryGetValue(response.Ticker, out var ticker))
+            {
+                return null;
+            }
+            return new()
+            {
+                Ticker = ticker,
+                Date = response.Date,
+                Open = response.Open,
+                High = response.High,
+                Low = response.Low,
+                Average = response.Average,
+                Close = response.Close,
+                Strike = response.Strike,
+                Expiration = response.Expiration,
+            };
+        }
+        private async IAsyncEnumerable<HistoricalData> ProcessFileAsync(ZipArchiveEntry entry, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var stream = entry.Open();
             await using (stream.ConfigureAwait(false))
             {
-                using StreamReader reader = new(stream);
+                using StreamReader reader = new(stream, Encoding.UTF8, leaveOpen: true, bufferSize: 1024 * 1024, detectEncodingFromByteOrderMarks: false);
                 while (!reader.EndOfStream)
                 {
                     var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                    if (CheckLine(line))
+                    if (line is null)
                     {
-                        yield return ProcessLine(line);
+                        continue;
+                    }
+                    Lines++;
+                    var data = ProcessLine(line);
+                    if (data is not null)
+                    {
+                        yield return data;
                     }
                 }
             }
@@ -71,7 +104,6 @@ namespace Tcc.DownloadData.Readers
             {
                 await foreach (var data in ProcessFileAsync(entry, cancellationToken).ConfigureAwait(false).WithCancellation(cancellationToken))
                 {
-                    Lines++;
                     await _channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -79,7 +111,7 @@ namespace Tcc.DownloadData.Readers
             Time = stopWatch.Elapsed;
             _channel.Writer.Complete();
         }
-        public async IAsyncEnumerable<HistoricalDataResponse> ReadAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<HistoricalData> ReadAsync([EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var task = ProcessZipAsync(cancellationToken);
             await foreach (var data in _channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))

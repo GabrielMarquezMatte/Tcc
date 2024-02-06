@@ -12,6 +12,7 @@ using Tcc.DownloadData.Entities;
 using Tcc.DownloadData.Enums;
 using Tcc.DownloadData.Models.Options;
 using Tcc.DownloadData.Readers;
+using Tcc.DownloadData.ValueObjects;
 
 namespace Tcc.DownloadData.Repositories
 {
@@ -68,82 +69,59 @@ namespace Tcc.DownloadData.Repositories
             builder.Append(".ZIP");
             return new(builder.ToString());
         }
-        private async Task<ZipArchive?> DownloadAsync(HistoricalType historicalType, DateTime date, CancellationToken cancellationToken)
+        private async Task<ZipArchive?> DownloadAsync(SemaphoreSlim semaphore, HistoricalType historicalType, DateTime date, CancellationToken cancellationToken)
         {
             var uri = BuildUri(historicalType, date);
-            var response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                return null;
-            }
-            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            return new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
-        }
-        private async Task ProcessSingleFileAsync(IReadOnlyDictionary<string, Ticker> tickers, HistoricalType historicalType,
-                                                  DateTime date, CancellationToken cancellationToken)
-        {
-            LogMessage(_downloadStarted, logger, date, historicalType);
-            using var zipArchive = await DownloadAsync(historicalType, date, cancellationToken).ConfigureAwait(false);
-            if (zipArchive is null)
-            {
-                LogMessage(_downloadFailed, logger, date, historicalType);
-                return;
-            }
-            LogMessage(_downloadSucceeded, logger, date, historicalType);
-            HistoricalFileReader reader = new(zipArchive);
-            var historicalData = reader.ReadAsync(cancellationToken);
-            await foreach (var data in historicalData.ConfigureAwait(false).WithCancellation(cancellationToken))
-            {
-                if (!tickers.TryGetValue(data.Ticker, out var ticker))
-                {
-                    continue;
-                }
-                HistoricalData entity = new()
-                {
-                    Ticker = ticker,
-                    Date = data.Date,
-                    Open = data.Open,
-                    High = data.High,
-                    Low = data.Low,
-                    Average = data.Average,
-                    Close = data.Close,
-                    Strike = data.Strike,
-                    Expiration = data.Expiration,
-                };
-                await channel.Writer.WriteAsync(entity, cancellationToken).ConfigureAwait(false);
-            }
-            _lines += reader.Lines;
-            _time += reader.Time;
-            _finishedProcessing(logger, DateToStringLog(historicalType, date), reader.Lines, reader.Time, null);
-        }
-        private async Task ProcessFileSemaphoreAsync(SemaphoreSlim semaphore,
-                                                     IReadOnlyDictionary<string, Ticker> tickers,
-                                                     HistoricalType historicalType, DateTime date,
-                                                     CancellationToken cancellationToken)
-        {
             await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await ProcessSingleFileAsync(tickers, historicalType, date, cancellationToken).ConfigureAwait(false);
+                LogMessage(_downloadStarted, logger, date, historicalType);
+                var response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    LogMessage(_downloadFailed, logger, date, historicalType);
+                    return null;
+                }
+                LogMessage(_downloadSucceeded, logger, date, historicalType);
+                var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                return new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
             }
             finally
             {
                 semaphore.Release();
             }
         }
-        private async Task ProcessAllFilesAsync(IReadOnlyDictionary<string, Ticker> tickers, HistoricalType historicalType,
+        private async Task ProcessSingleFileAsync(SemaphoreSlim semaphore, IReadOnlyDictionary<TickerKey, Ticker> tickers, HistoricalType historicalType,
+                                                  DateTime date, CancellationToken cancellationToken)
+        {
+            using var zipArchive = await DownloadAsync(semaphore, historicalType, date, cancellationToken).ConfigureAwait(false);
+            if (zipArchive is null)
+            {
+                return;
+            }
+            HistoricalFileReader reader = new(zipArchive, tickers);
+            var historicalData = reader.ReadAsync(cancellationToken);
+            await foreach (var data in historicalData.ConfigureAwait(false).WithCancellation(cancellationToken))
+            {
+                await channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+            }
+            _lines += reader.Lines;
+            _time += reader.Time;
+            _finishedProcessing(logger, DateToStringLog(historicalType, date), reader.Lines, reader.Time, null);
+        }
+        private async Task ProcessAllFilesAsync(IReadOnlyDictionary<TickerKey, Ticker> tickers, HistoricalType historicalType,
                                                 IEnumerable<DateTime> dates, int maxDegreeOfParallelism, CancellationToken cancellationToken)
         {
             List<Task> tasks = [];
             using SemaphoreSlim semaphore = new(maxDegreeOfParallelism);
             foreach (var date in dates)
             {
-                tasks.Add(ProcessFileSemaphoreAsync(semaphore, tickers, historicalType, date, cancellationToken));
+                tasks.Add(ProcessSingleFileAsync(semaphore, tickers, historicalType, date, cancellationToken));
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
             channel.Writer.Complete();
         }
-        public async Task GetHistoricalDataAsync(IReadOnlyDictionary<string, Ticker> tickers,
+        public async Task GetHistoricalDataAsync(IReadOnlyDictionary<TickerKey, Ticker> tickers,
                                                  ReadOnlyCollection<DateTime> dates, HistoricalType historicalType,
                                                  int maxDegreeOfParallelism, CancellationToken cancellationToken)
         {
