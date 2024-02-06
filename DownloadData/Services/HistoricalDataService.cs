@@ -1,12 +1,12 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Tcc.DownloadData.Data;
-using Tcc.DownloadData.Enums;
-using Tcc.DownloadData.Repositories;
-using Tcc.DownloadData.ValueObjects;
+using DownloadData.Data;
+using DownloadData.Enums;
+using DownloadData.Repositories;
+using DownloadData.ValueObjects;
 
-namespace Tcc.DownloadData.Services
+namespace DownloadData.Services
 {
     public sealed class HistoricalDataService(StockContext stockContext, HistoricalDataRepository historicalDataRepository, ILogger<HistoricalDataService> logger)
     {

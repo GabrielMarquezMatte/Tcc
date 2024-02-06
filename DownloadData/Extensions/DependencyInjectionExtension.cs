@@ -2,9 +2,9 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Tcc.DownloadData.Interfaces;
+using DownloadData.Interfaces;
 
-namespace Tcc.DownloadData.Extensions
+namespace DownloadData.Extensions
 {
     public static class DependencyInjectionExtension
     {

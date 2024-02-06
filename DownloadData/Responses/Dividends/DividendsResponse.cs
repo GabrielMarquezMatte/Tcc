@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Tcc.DownloadData.Responses.Dividends
+namespace DownloadData.Responses.Dividends
 {
     public sealed class DividendsResponse
     {

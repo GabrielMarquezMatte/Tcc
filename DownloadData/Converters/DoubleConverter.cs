@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Tcc.DownloadData.Converters
+namespace DownloadData.Converters
 {
     public sealed class DoubleConverter : JsonConverter<double>
     {

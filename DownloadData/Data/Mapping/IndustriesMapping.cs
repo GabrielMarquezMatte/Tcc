@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Tcc.DownloadData.Entities;
-namespace Tcc.DownloadData.Data.Mapping
+using DownloadData.Entities;
+namespace DownloadData.Data.Mapping
 {
     public sealed class IndustriesMapping : IEntityTypeConfiguration<Industry>
     {

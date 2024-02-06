@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Tcc.DownloadData.Responses.SplitSubscription
+namespace DownloadData.Responses.SplitSubscription
 {
     public sealed class SplitSubscriptionResponse
     {

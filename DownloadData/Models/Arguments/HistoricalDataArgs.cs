@@ -1,7 +1,7 @@
 using Cocona;
-using Tcc.DownloadData.Enums;
+using DownloadData.Enums;
 
-namespace Tcc.DownloadData.Models.Arguments
+namespace DownloadData.Models.Arguments
 {
     public sealed class HistoricalDataArgs : ICommandParameterSet
     {

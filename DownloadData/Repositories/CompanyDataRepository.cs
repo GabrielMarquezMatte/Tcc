@@ -5,15 +5,15 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Tcc.DownloadData.Models.Arguments;
-using Tcc.DownloadData.Models.Options;
-using Tcc.DownloadData.Requests;
-using Tcc.DownloadData.Responses;
-using Tcc.DownloadData.Responses.Companies;
-using Tcc.DownloadData.Responses.Dividends;
-using Tcc.DownloadData.Responses.SplitSubscription;
+using DownloadData.Models.Arguments;
+using DownloadData.Models.Options;
+using DownloadData.Requests;
+using DownloadData.Responses;
+using DownloadData.Responses.Companies;
+using DownloadData.Responses.Dividends;
+using DownloadData.Responses.SplitSubscription;
 
-namespace Tcc.DownloadData.Repositories
+namespace DownloadData.Repositories
 {
     public sealed class CompanyDataRepository(HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions, ILogger<CompanyDataRepository> logger)
     {

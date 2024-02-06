@@ -1,4 +1,4 @@
-namespace Tcc.DownloadData.Models.Options
+namespace DownloadData.Models.Options
 {
     public sealed class DownloadUrlsOptions
     {

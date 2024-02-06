@@ -1,15 +1,15 @@
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Tcc.DownloadData.Data;
-using Tcc.DownloadData.Entities;
-using Tcc.DownloadData.Models.Arguments;
-using Tcc.DownloadData.Repositories;
-using Tcc.DownloadData.Responses;
-using Tcc.DownloadData.Responses.Dividends;
-using Tcc.DownloadData.Responses.SplitSubscription;
+using DownloadData.Data;
+using DownloadData.Entities;
+using DownloadData.Models.Arguments;
+using DownloadData.Repositories;
+using DownloadData.Responses;
+using DownloadData.Responses.Dividends;
+using DownloadData.Responses.SplitSubscription;
 
-namespace Tcc.DownloadData.Services
+namespace DownloadData.Services
 {
     public sealed class CompanyDataService(StockContext stockContext, CompanyDataRepository companyDataRepository, ILogger<CompanyDataService> logger)
     {

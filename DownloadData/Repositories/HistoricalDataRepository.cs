@@ -7,14 +7,14 @@ using FastEnumUtility;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Tcc.DownloadData.Data;
-using Tcc.DownloadData.Entities;
-using Tcc.DownloadData.Enums;
-using Tcc.DownloadData.Models.Options;
-using Tcc.DownloadData.Readers;
-using Tcc.DownloadData.ValueObjects;
+using DownloadData.Data;
+using DownloadData.Entities;
+using DownloadData.Enums;
+using DownloadData.Models.Options;
+using DownloadData.Readers;
+using DownloadData.ValueObjects;
 
-namespace Tcc.DownloadData.Repositories
+namespace DownloadData.Repositories
 {
     public sealed class HistoricalDataRepository(StockContext stockContext, HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions, ILogger<HistoricalDataRepository> logger)
     {

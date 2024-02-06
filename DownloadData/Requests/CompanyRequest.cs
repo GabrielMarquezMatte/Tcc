@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Tcc.DownloadData.Requests
+namespace DownloadData.Requests
 {
     public sealed class CompanyRequest
     {

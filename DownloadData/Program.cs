@@ -1,7 +1,7 @@
 ﻿using Cocona;
 using Microsoft.Extensions.Configuration;
-using Tcc.DownloadData.Commands;
-using Tcc.DownloadData.Extensions;
+using DownloadData.Commands;
+using DownloadData.Extensions;
 namespace Tcc.DownloadData
 {
     public static class Program

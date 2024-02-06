@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
-using Tcc.DownloadData.Responses.Dividends;
-using Tcc.DownloadData.Responses.SplitSubscription;
+using DownloadData.Responses.Dividends;
+using DownloadData.Responses.SplitSubscription;
 
-namespace Tcc.DownloadData.Responses
+namespace DownloadData.Responses
 {
     public sealed class CompanyResponse
     {

@@ -1,6 +1,6 @@
 using Cocona;
 
-namespace Tcc.DownloadData.Models.Arguments
+namespace DownloadData.Models.Arguments
 {
     public sealed class CompanyDataArgs : ICommandParameterSet
     {

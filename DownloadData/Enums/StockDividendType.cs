@@ -1,4 +1,4 @@
-namespace Tcc.DownloadData.Enums
+namespace DownloadData.Enums
 {
     public enum StockDividendType
     {

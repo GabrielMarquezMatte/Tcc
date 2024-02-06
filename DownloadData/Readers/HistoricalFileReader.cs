@@ -3,24 +3,26 @@ using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
-using Tcc.DownloadData.Entities;
-using Tcc.DownloadData.Responses;
-using Tcc.DownloadData.ValueObjects;
+using DownloadData.Entities;
+using DownloadData.Responses;
+using DownloadData.ValueObjects;
 
-namespace Tcc.DownloadData.Readers
+namespace DownloadData.Readers
 {
     public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers)
     {
         private readonly Channel<HistoricalData> _channel = Channel.CreateUnbounded<HistoricalData>();
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static DateTime ParseDate(ReadOnlySpan<char> span)
         {
             return new((span[0] - '0') * 1000 + (span[1] - '0') * 100 + (span[2] - '0') * 10 + (span[3] - '0'), (span[4] - '0') * 10 + (span[5] - '0'), (span[6] - '0') * 10 + (span[7] - '0'), 0, 0, 0, DateTimeKind.Unspecified);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static double ParseDouble(ReadOnlySpan<char> span)
         {
-            long result = (span[0] - '0') * 1_000_000_000_000L +
+            var result = (span[0] - '0') * 1_000_000_000_000L +
                           (span[1] - '0') * 100_000_000_000L +
                           (span[2] - '0') * 10_000_000_000L +
                           (span[3] - '0') * 1_000_000_000L +
@@ -35,6 +37,7 @@ namespace Tcc.DownloadData.Readers
                           (span[12] - '0');
             return result * 0.01;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static HistoricalDataResponse ParseLine(ReadOnlySpan<char> span) => new()
         {
             Ticker = span.Slice(12, 12).TrimEnd(),
@@ -47,13 +50,9 @@ namespace Tcc.DownloadData.Readers
             Strike = ParseDouble(span.Slice(188, 13)),
             Expiration = ParseDate(span.Slice(202, 8)),
         };
-        private static bool CheckLine(ReadOnlySpan<char> span)
-        {
-            return span.Length == 245 && !span.StartsWith("99C", StringComparison.Ordinal) && !span.StartsWith("00C", StringComparison.Ordinal);
-        }
         private HistoricalData? ProcessLine(ReadOnlySpan<char> span)
         {
-            if (!CheckLine(span))
+            if (span[..3] is "99C" or "00C")
             {
                 return null;
             }
@@ -75,7 +74,7 @@ namespace Tcc.DownloadData.Readers
                 Expiration = response.Expiration,
             };
         }
-        private async IAsyncEnumerable<HistoricalData> ProcessFileAsync(ZipArchiveEntry entry, [EnumeratorCancellation] CancellationToken cancellationToken)
+        private async Task ProcessFileAsync(ZipArchiveEntry entry, CancellationToken cancellationToken)
         {
             var stream = entry.Open();
             await using (stream.ConfigureAwait(false))
@@ -92,7 +91,7 @@ namespace Tcc.DownloadData.Readers
                     var data = ProcessLine(line);
                     if (data is not null)
                     {
-                        yield return data;
+                        await _channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -102,10 +101,7 @@ namespace Tcc.DownloadData.Readers
             var stopWatch = Stopwatch.StartNew();
             foreach (var entry in zipArchive.Entries)
             {
-                await foreach (var data in ProcessFileAsync(entry, cancellationToken).ConfigureAwait(false).WithCancellation(cancellationToken))
-                {
-                    await _channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
-                }
+                await ProcessFileAsync(entry, cancellationToken).ConfigureAwait(false);
             }
             stopWatch.Stop();
             Time = stopWatch.Elapsed;

@@ -1,6 +1,6 @@
 using FastEnumUtility;
 
-namespace Tcc.DownloadData.Enums
+namespace DownloadData.Enums
 {
     public enum HistoricalType
     {

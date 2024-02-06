@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using Tcc.DownloadData.Converters;
+using DownloadData.Converters;
 
-namespace Tcc.DownloadData.Responses.Dividends
+namespace DownloadData.Responses.Dividends
 {
     public sealed class DividendsResult
     {

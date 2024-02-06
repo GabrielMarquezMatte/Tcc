@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using Tcc.DownloadData.Converters;
+using DownloadData.Converters;
 
-namespace Tcc.DownloadData.Responses.SplitSubscription
+namespace DownloadData.Responses.SplitSubscription
 {
     public sealed class SubscriptionResponse
     {

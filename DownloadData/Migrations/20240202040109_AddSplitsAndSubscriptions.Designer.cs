@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Tcc.DownloadData.Data;
+using DownloadData.Data;
 
 #nullable disable
 
@@ -25,7 +25,7 @@ namespace DownloadData.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Company", b =>
+            modelBuilder.Entity("DownloadData.Entities.Company", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -61,7 +61,7 @@ namespace DownloadData.Migrations
                     b.ToTable("Companies", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.CompanyIndustry", b =>
+            modelBuilder.Entity("DownloadData.Entities.CompanyIndustry", b =>
                 {
                     b.Property<int>("CompanyId")
                         .HasColumnType("int");
@@ -76,7 +76,7 @@ namespace DownloadData.Migrations
                     b.ToTable("CompanyIndustries", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.HistoricalData", b =>
+            modelBuilder.Entity("DownloadData.Entities.HistoricalData", b =>
                 {
                     b.Property<int>("TickerId")
                         .HasColumnType("int");
@@ -110,7 +110,7 @@ namespace DownloadData.Migrations
                     b.ToTable("HistoricalData", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Industry", b =>
+            modelBuilder.Entity("DownloadData.Entities.Industry", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -130,7 +130,7 @@ namespace DownloadData.Migrations
                     b.ToTable("Industries", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Split", b =>
+            modelBuilder.Entity("DownloadData.Entities.Split", b =>
                 {
                     b.Property<int>("TickerId")
                         .HasColumnType("int");
@@ -152,7 +152,7 @@ namespace DownloadData.Migrations
                     b.ToTable("Splits", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Subscription", b =>
+            modelBuilder.Entity("DownloadData.Entities.Subscription", b =>
                 {
                     b.Property<int>("TickerId")
                         .HasColumnType("int");
@@ -174,7 +174,7 @@ namespace DownloadData.Migrations
                     b.ToTable("Subscriptions", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Ticker", b =>
+            modelBuilder.Entity("DownloadData.Entities.Ticker", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -203,15 +203,15 @@ namespace DownloadData.Migrations
                     b.ToTable("Tickers", (string)null);
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.CompanyIndustry", b =>
+            modelBuilder.Entity("DownloadData.Entities.CompanyIndustry", b =>
                 {
-                    b.HasOne("Tcc.DownloadData.Entities.Company", "Company")
+                    b.HasOne("DownloadData.Entities.Company", "Company")
                         .WithMany("Industries")
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Tcc.DownloadData.Entities.Industry", "Industry")
+                    b.HasOne("DownloadData.Entities.Industry", "Industry")
                         .WithMany("Companies")
                         .HasForeignKey("IndustryId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -222,9 +222,9 @@ namespace DownloadData.Migrations
                     b.Navigation("Industry");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.HistoricalData", b =>
+            modelBuilder.Entity("DownloadData.Entities.HistoricalData", b =>
                 {
-                    b.HasOne("Tcc.DownloadData.Entities.Ticker", "Ticker")
+                    b.HasOne("DownloadData.Entities.Ticker", "Ticker")
                         .WithMany("HistoricalData")
                         .HasForeignKey("TickerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -233,9 +233,9 @@ namespace DownloadData.Migrations
                     b.Navigation("Ticker");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Split", b =>
+            modelBuilder.Entity("DownloadData.Entities.Split", b =>
                 {
-                    b.HasOne("Tcc.DownloadData.Entities.Ticker", "Ticker")
+                    b.HasOne("DownloadData.Entities.Ticker", "Ticker")
                         .WithMany("Splits")
                         .HasForeignKey("TickerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -244,9 +244,9 @@ namespace DownloadData.Migrations
                     b.Navigation("Ticker");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Subscription", b =>
+            modelBuilder.Entity("DownloadData.Entities.Subscription", b =>
                 {
-                    b.HasOne("Tcc.DownloadData.Entities.Ticker", "Ticker")
+                    b.HasOne("DownloadData.Entities.Ticker", "Ticker")
                         .WithMany("Subscriptions")
                         .HasForeignKey("TickerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -255,9 +255,9 @@ namespace DownloadData.Migrations
                     b.Navigation("Ticker");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Ticker", b =>
+            modelBuilder.Entity("DownloadData.Entities.Ticker", b =>
                 {
-                    b.HasOne("Tcc.DownloadData.Entities.Company", "Company")
+                    b.HasOne("DownloadData.Entities.Company", "Company")
                         .WithMany("Tickers")
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -266,19 +266,19 @@ namespace DownloadData.Migrations
                     b.Navigation("Company");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Company", b =>
+            modelBuilder.Entity("DownloadData.Entities.Company", b =>
                 {
                     b.Navigation("Industries");
 
                     b.Navigation("Tickers");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Industry", b =>
+            modelBuilder.Entity("DownloadData.Entities.Industry", b =>
                 {
                     b.Navigation("Companies");
                 });
 
-            modelBuilder.Entity("Tcc.DownloadData.Entities.Ticker", b =>
+            modelBuilder.Entity("DownloadData.Entities.Ticker", b =>
                 {
                     b.Navigation("HistoricalData");
 

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Tcc.DownloadData.Responses
+namespace DownloadData.Responses
 {
     public sealed class CompanyCodes
     {

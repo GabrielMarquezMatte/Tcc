@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Tcc.DownloadData.Responses
+namespace DownloadData.Responses
 {
     [StructLayout(LayoutKind.Auto, CharSet = CharSet.Ansi)]
     public ref struct HistoricalDataResponse

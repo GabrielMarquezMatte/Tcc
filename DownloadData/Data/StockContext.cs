@@ -1,8 +1,8 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Tcc.DownloadData.Entities;
+using DownloadData.Entities;
 
-namespace Tcc.DownloadData.Data
+namespace DownloadData.Data
 {
     public sealed class StockContext(DbContextOptions<StockContext> options) : DbContext(options)
     {

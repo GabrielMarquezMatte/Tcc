@@ -2,12 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Tcc.DownloadData.Data;
-using Tcc.DownloadData.Interfaces;
-using Tcc.DownloadData.Repositories;
-using Tcc.DownloadData.Services;
+using DownloadData.Data;
+using DownloadData.Interfaces;
+using DownloadData.Repositories;
+using DownloadData.Services;
 
-namespace Tcc.DownloadData.Installers
+namespace DownloadData.Installers
 {
     public sealed class CustomServicesInstaller : IServiceInstaller
     {

@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Tcc.DownloadData.Interfaces;
-using Tcc.DownloadData.Models.Options;
+using DownloadData.Interfaces;
+using DownloadData.Models.Options;
 
-namespace Tcc.DownloadData.Installers
+namespace DownloadData.Installers
 {
     public sealed class OptionsInstaller : IServiceInstaller
     {

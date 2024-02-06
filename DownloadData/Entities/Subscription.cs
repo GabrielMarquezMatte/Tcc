@@ -1,4 +1,4 @@
-namespace Tcc.DownloadData.Entities
+namespace DownloadData.Entities
 {
     public sealed class Subscription
     {

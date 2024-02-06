@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using Cocona;
 using Microsoft.Extensions.Logging;
-using Tcc.DownloadData.Models.Arguments;
-using Tcc.DownloadData.Services;
+using DownloadData.Models.Arguments;
+using DownloadData.Services;
 
-namespace Tcc.DownloadData.Commands
+namespace DownloadData.Commands
 {
     public sealed class StockDataCommand(CompanyDataService companyDataService, HistoricalDataService historicalDataService, ILogger<StockDataCommand> logger)
     {

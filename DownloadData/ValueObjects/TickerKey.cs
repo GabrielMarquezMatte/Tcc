@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Tcc.DownloadData.ValueObjects
+namespace DownloadData.ValueObjects
 {
     public readonly struct TickerKey(ReadOnlySpan<char> value) : IEquatable<TickerKey>
     {
