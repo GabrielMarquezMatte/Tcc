@@ -79,7 +79,7 @@ namespace DownloadData.Readers
             var stream = entry.Open();
             await using (stream.ConfigureAwait(false))
             {
-                using StreamReader reader = new(stream, Encoding.UTF8, leaveOpen: true, bufferSize: 1024 * 1024, detectEncodingFromByteOrderMarks: false);
+                using StreamReader reader = new(stream, Encoding.ASCII, leaveOpen: true, bufferSize: 1024 * 1024, detectEncodingFromByteOrderMarks: false);
                 while (!reader.EndOfStream)
                 {
                     var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
