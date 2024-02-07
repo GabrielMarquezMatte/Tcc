@@ -79,20 +79,19 @@ namespace DownloadData.Readers
             var stream = entry.Open();
             await using (stream.ConfigureAwait(false))
             {
+                var buffer = new char[247];
+                var memory = buffer.AsMemory();
                 using StreamReader reader = new(stream, Encoding.ASCII, leaveOpen: true, bufferSize: 1024 * 1024, detectEncodingFromByteOrderMarks: false);
-                while (!reader.EndOfStream)
+                var read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
+                while (read > 0)
                 {
-                    var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                    if (line is null)
-                    {
-                        continue;
-                    }
                     Lines++;
-                    var data = ProcessLine(line);
+                    var data = ProcessLine(buffer);
                     if (data is not null)
                     {
                         await _channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                     }
+                    read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
