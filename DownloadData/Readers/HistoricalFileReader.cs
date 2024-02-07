@@ -98,10 +98,7 @@ namespace DownloadData.Readers
         private async Task ProcessZipAsync(CancellationToken cancellationToken)
         {
             var stopWatch = Stopwatch.StartNew();
-            foreach (var entry in zipArchive.Entries)
-            {
-                await ProcessFileAsync(entry, cancellationToken).ConfigureAwait(false);
-            }
+            await ProcessFileAsync(zipArchive.Entries[0], cancellationToken).ConfigureAwait(false);
             stopWatch.Stop();
             Time = stopWatch.Elapsed;
             _channel.Writer.Complete();
