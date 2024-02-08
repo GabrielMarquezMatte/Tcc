@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace DownloadData.ValueObjects
 {
@@ -15,17 +16,25 @@ namespace DownloadData.ValueObjects
             return obj is TickerKey key && key._value.AsSpan().SequenceEqual(_value);
         }
         public override readonly int GetHashCode() => _hashCode;
-        private static int ComputeHashCode(ReadOnlySpan<char> value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe static int ComputeHashCode(char* value, int length)
         {
             const int prime = 31;
             int hash = 0;
-            foreach(ref readonly var v in value)
+            for (int i = 0; i < length; i++)
             {
-                hash = (hash * prime + v) % int.MaxValue;
+                hash = (hash * prime + value[i]) % int.MaxValue;
             }
             return hash;
         }
-        public static implicit operator TickerKey(string value) => new(value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe static int ComputeHashCode(ReadOnlySpan<char> value)
+        {
+            fixed(char* ptr = value)
+            {
+                return ComputeHashCode(ptr, value.Length);
+            }
+        }
         public static implicit operator TickerKey(ReadOnlySpan<char> value) => new(value);
         public static implicit operator string(TickerKey key) => key._value;
         public TickerKey ToTickerKey()
