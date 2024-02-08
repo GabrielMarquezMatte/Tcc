@@ -6,14 +6,14 @@ namespace Tcc.DownloadData
 {
     public static class Program
     {
-        public static Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = CoconaApp.CreateBuilder(args);
             builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
             builder.Services.InstallServices(builder.Configuration, builder.Logging, typeof(Program).Assembly);
-            var app = builder.Build();
+            using var app = builder.Build();
             app.AddCommands<StockDataCommand>();
-            return app.RunAsync(app.Lifetime.ApplicationStopping);
+            await app.RunAsync(app.Lifetime.ApplicationStopping).ConfigureAwait(false);
         }
     }
 }

@@ -76,7 +76,9 @@ namespace DownloadData.Repositories
             try
             {
                 LogMessage(_downloadStarted, logger, date, historicalType);
+#pragma warning disable IDISP001 // Dispose created
                 var response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+#pragma warning restore IDISP001 // Dispose created
                 if (!response.IsSuccessStatusCode)
                 {
                     LogMessage(_downloadFailed, logger, date, historicalType);

@@ -19,9 +19,9 @@ namespace DownloadData.ValueObjects
         {
             const int prime = 31;
             int hash = 0;
-            for(int i = 0; i < value.Length; i++)
+            foreach(ref readonly var v in value)
             {
-                hash = (hash * prime + value[i]) % int.MaxValue;
+                hash = (hash * prime + v) % int.MaxValue;
             }
             return hash;
         }

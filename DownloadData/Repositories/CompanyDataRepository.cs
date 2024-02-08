@@ -108,13 +108,13 @@ namespace DownloadData.Repositories
             var url = CreateUri(urlOptions.Value.CompanyDetails, request);
             return FetchDataAsync<CompanyResponse>(url, semaphore, null, cancellationToken);
         }
-        private Task<DividendsResponse?> FetchDividendsAsync(string tradingName, SemaphoreSlim semaphore, CancellationToken cancellationToken)
+        private async Task<DividendsResponse?> FetchDividendsAsync(string tradingName, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
             DividendsRequest request = new() { TradingName = tradingName };
             var url = CreateUri(urlOptions.Value.Dividends, request);
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cancellationTokenSource.CancelAfter(5000);
-            return FetchDataAsync<DividendsResponse>(url, semaphore, JsonSerializerOptions, cancellationTokenSource.Token);
+            return await FetchDataAsync<DividendsResponse>(url, semaphore, JsonSerializerOptions, cancellationTokenSource.Token).ConfigureAwait(false);
         }
         private static bool ShouldProcessCompany(CompanyResponse? company)
         {
@@ -197,19 +197,13 @@ namespace DownloadData.Repositories
             {
                 if (companyDataArgs.Companies.Any())
                 {
-                    var tasks = companyDataArgs.Companies.Select(codeCvm =>
-                    {
-                        return ProcessCompanyResponseAsync(codeCvm, semaphore, companyDataArgs, cancellationToken);
-                    });
+                    var tasks = companyDataArgs.Companies.Select(async codeCvm => await ProcessCompanyResponseAsync(codeCvm, semaphore, companyDataArgs, cancellationToken).ConfigureAwait(false));
                     await Task.WhenAll(tasks).ConfigureAwait(false);
                     return;
                 }
                 var response = await FetchCompaniesAsync(semaphore, cancellationToken).ConfigureAwait(false);
-                if (response == null || !response.Results.Any()) return;
-                var tasks1 = response.Results.Select(result =>
-                {
-                    return ProcessCompanyResponseAsync(result.CodeCvm, semaphore, companyDataArgs, cancellationToken);
-                });
+                if (response?.Results.Any() != true) return;
+                var tasks1 = response.Results.Select(async result => await ProcessCompanyResponseAsync(result.CodeCvm, semaphore, companyDataArgs, cancellationToken).ConfigureAwait(false));
                 await Task.WhenAll(tasks1).ConfigureAwait(false);
             }
             finally
