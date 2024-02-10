@@ -9,9 +9,10 @@ using DownloadData.ValueObjects;
 
 namespace DownloadData.Readers
 {
-    public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers)
+    public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers,
+                                             IDictionary<(Ticker ticker, DateTime Date), HistoricalData> historicalData,
+                                             ChannelWriter<HistoricalData> channel)
     {
-        private readonly Channel<HistoricalData> _channel = Channel.CreateUnbounded<HistoricalData>();
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,23 +55,26 @@ namespace DownloadData.Readers
             }
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static HistoricalDataResponse ParseLine(ReadOnlySpan<char> span) => new(span.Slice(12, 12).TrimEnd(' '),
-                                                                                        ParseDate(span.Slice(2, 8)),
-                                                                                        ParseDouble(span.Slice(56, 13)),
-                                                                                        ParseDouble(span.Slice(69, 13)),
-                                                                                        ParseDouble(span.Slice(82, 13)),
-                                                                                        ParseDouble(span.Slice(95, 13)),
-                                                                                        ParseDouble(span.Slice(108, 13)),
-                                                                                        ParseDouble(span.Slice(188, 13)),
-                                                                                        ParseDate(span.Slice(202, 8)));
+        private static HistoricalDataResponse ParseLine(ReadOnlySpan<char> ticker, ReadOnlySpan<char> span)
+        {
+            return new(ticker, ParseDate(span.Slice(2, 8)), ParseDouble(span.Slice(56, 13)),
+                       ParseDouble(span.Slice(69, 13)), ParseDouble(span.Slice(82, 13)), ParseDouble(span.Slice(95, 13)),
+                       ParseDouble(span.Slice(108, 13)), ParseDouble(span.Slice(188, 13)), ParseDate(span.Slice(202, 8)));
+        }
+
         private HistoricalData? ProcessLine(ReadOnlySpan<char> span)
         {
             if (span[..3] is "99C" or "00C")
             {
                 return null;
             }
-            var response = ParseLine(span);
-            if (!tickers.TryGetValue(response.Ticker, out var ticker))
+            var tickerSpan = span.Slice(12, 12).TrimEnd(' ');
+            if (!tickers.TryGetValue(tickerSpan, out var ticker))
+            {
+                return null;
+            }
+            var response = ParseLine(tickerSpan, span);
+            if(historicalData.ContainsKey((ticker, response.Date)))
             {
                 return null;
             }
@@ -102,28 +106,18 @@ namespace DownloadData.Readers
                     var data = ProcessLine(buffer);
                     if (data is not null)
                     {
-                        await _channel.Writer.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+                        await channel.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                     }
                     read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
-        private async Task ProcessZipAsync(CancellationToken cancellationToken)
+        public async Task ProcessZipAsync(CancellationToken cancellationToken)
         {
             var stopWatch = Stopwatch.StartNew();
             await ProcessFileAsync(zipArchive.Entries[0], cancellationToken).ConfigureAwait(false);
             stopWatch.Stop();
             Time = stopWatch.Elapsed;
-            _channel.Writer.Complete();
-        }
-        public async IAsyncEnumerable<HistoricalData> ReadAsync([EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            var task = ProcessZipAsync(cancellationToken);
-            await foreach (var data in _channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-            {
-                yield return data;
-            }
-            await task.ConfigureAwait(false);
         }
     }
 }

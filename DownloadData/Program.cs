@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using DownloadData.Commands;
 using DownloadData.Extensions;
-namespace Tcc.DownloadData
+namespace DownloadData
 {
     public static class Program
     {

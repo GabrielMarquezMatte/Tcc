@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DownloadData": {
+      "commandName": "Project",
+      "commandLineArgs": "historical-data -s \"2010-01-01\" -t \"Year\"",
+      "workingDirectory": ".",
+      "nativeDebugging": true
+    }
+  }
+}

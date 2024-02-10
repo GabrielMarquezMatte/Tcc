@@ -9,7 +9,7 @@ namespace DownloadData.Data.Mapping
         {
             builder.ToTable("Industries");
             builder.HasKey(i => i.Id);
-            builder.Property(i => i.Name).IsRequired();
+            builder.Property(i => i.Name).HasColumnType("VARCHAR").HasMaxLength(40).IsRequired();
             builder.HasMany(i => i.Companies).WithOne(ci => ci.Industry).HasForeignKey(ci => ci.IndustryId);
             builder.HasIndex(i => i.Name).IsUnique();
         }

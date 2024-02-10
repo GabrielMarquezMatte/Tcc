@@ -14,7 +14,7 @@ namespace DownloadData.Data.Mapping
             builder.Property(s => s.LastDate).HasColumnType("DATE").IsRequired();
             builder.Property(s => s.SplitFactor).IsRequired();
             builder.Property(s => s.ApprovalDate).HasColumnType("DATE").IsRequired();
-            builder.Property(s => s.Type).HasColumnType("VARCHAR(max)").IsRequired();
+            builder.Property(s => s.Type).HasColumnType("VARCHAR").HasMaxLength(13).IsRequired();
             builder.HasOne(s => s.Ticker).WithMany(t => t.Splits).HasForeignKey(s => s.TickerId);
         }
     }

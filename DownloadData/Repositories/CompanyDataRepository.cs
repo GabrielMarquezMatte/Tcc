@@ -41,12 +41,12 @@ namespace DownloadData.Repositories
             var base64String = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
             return new(baseUri + "/" + base64String);
         }
-        private async Task<T?> FetchDataAsync<T>(Uri uri, SemaphoreSlim semaphore, JsonSerializerOptions? jsonSerializer, CancellationToken cancellationToken)
+        private async Task<T?> FetchDataAsync<T>(Uri uri, SemaphoreSlim semaphore, JsonSerializerOptions? jsonSerializer, CancellationToken cancellationToken, CancellationToken timeCancellation)
         {
             await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                using var response = await httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+                using var response = await httpClient.GetAsync(uri, timeCancellation).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength <= 10)
                 {
                     return default;
@@ -86,7 +86,7 @@ namespace DownloadData.Repositories
         {
             CompaniesRequest request = new();
             var url = CreateUri(urlOptions.Value.ListCompanies, request);
-            return FetchDataAsync<CompaniesResponse>(url, semaphoreSlim, null, cancellationToken);
+            return FetchDataAsync<CompaniesResponse>(url, semaphoreSlim, null, cancellationToken, CancellationToken.None);
         }
         private async Task<IEnumerable<SplitSubscriptionResponse>?> FetchSplitSubscriptionAsync(string issuingCompany, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
@@ -98,7 +98,7 @@ namespace DownloadData.Repositories
             _startFetchSplitSubscription(logger, issuingCompany, null);
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cancellationTokenSource.CancelAfter(50000);
-            var data = await FetchDataAsync<IEnumerable<SplitSubscriptionResponse>>(url, semaphore, JsonSerializerOptions, cancellationTokenSource.Token).ConfigureAwait(false);
+            var data = await FetchDataAsync<IEnumerable<SplitSubscriptionResponse>>(url, semaphore, JsonSerializerOptions, cancellationToken, cancellationTokenSource.Token).ConfigureAwait(false);
             _fetchSplitSubscription(logger, issuingCompany, null);
             return data;
         }
@@ -106,7 +106,7 @@ namespace DownloadData.Repositories
         {
             CompanyRequest request = new() { CodeCvm = codeCvm };
             var url = CreateUri(urlOptions.Value.CompanyDetails, request);
-            return FetchDataAsync<CompanyResponse>(url, semaphore, null, cancellationToken);
+            return FetchDataAsync<CompanyResponse>(url, semaphore, null, cancellationToken, CancellationToken.None);
         }
         private async Task<DividendsResponse?> FetchDividendsAsync(string tradingName, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
@@ -114,8 +114,9 @@ namespace DownloadData.Repositories
             var url = CreateUri(urlOptions.Value.Dividends, request);
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cancellationTokenSource.CancelAfter(5000);
-            return await FetchDataAsync<DividendsResponse>(url, semaphore, JsonSerializerOptions, cancellationTokenSource.Token).ConfigureAwait(false);
+            return await FetchDataAsync<DividendsResponse>(url, semaphore, JsonSerializerOptions, cancellationToken, cancellationTokenSource.Token).ConfigureAwait(false);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool ShouldProcessCompany(CompanyResponse? company)
         {
             return company != null
@@ -139,7 +140,7 @@ namespace DownloadData.Repositories
                 return;
             }
             var dividends = await FetchDividendsAsync(company.TradingName, semaphore, cancellationToken).ConfigureAwait(false);
-            if (dividends == null || !dividends.Dividends.Any())
+            if (dividends?.Dividends.Any() != true)
             {
                 return;
             }
@@ -150,14 +151,10 @@ namespace DownloadData.Repositories
                 switch (dividend.StockType)
                 {
                     case "ON":
-                        var ticker = codes.GetValueOrDefault('3', string.Empty);
-                        dividend.StockTicker = ticker;
+                        dividend.StockTicker = codes.GetValueOrDefault('3', string.Empty);
                         break;
                     case "PN":
-                        ticker = codes.GetValueOrDefault('4', string.Empty);
-                        dividend.StockTicker = ticker;
-                        break;
-                    default:
+                        dividend.StockTicker = codes.GetValueOrDefault('4', string.Empty);
                         break;
                 }
             }

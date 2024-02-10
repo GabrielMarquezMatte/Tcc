@@ -17,23 +17,15 @@ namespace DownloadData.ValueObjects
         }
         public override readonly int GetHashCode() => _hashCode;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static int ComputeHashCode(char* value, int length)
+        private static int ComputeHashCode(ReadOnlySpan<char> value)
         {
             const int prime = 31;
             int hash = 0;
-            for (int i = 0; i < length; i++)
+            foreach(ref readonly var v in value)
             {
-                hash = (hash * prime + value[i]) % int.MaxValue;
+                hash = (hash * prime + v) % int.MaxValue;
             }
             return hash;
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static int ComputeHashCode(ReadOnlySpan<char> value)
-        {
-            fixed(char* ptr = value)
-            {
-                return ComputeHashCode(ptr, value.Length);
-            }
         }
         public static implicit operator TickerKey(ReadOnlySpan<char> value) => new(value);
         public static implicit operator string(TickerKey key) => key._value;

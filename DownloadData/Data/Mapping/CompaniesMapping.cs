@@ -10,8 +10,8 @@ namespace DownloadData.Data.Mapping
         {
             builder.ToTable("Companies");
             builder.HasKey(c => c.Id);
-            builder.Property(c => c.Name).IsRequired();
-            builder.Property(c => c.Cnpj).IsRequired();
+            builder.Property(c => c.Name).HasColumnType("VARCHAR").HasMaxLength(100).IsRequired();
+            builder.Property(c => c.Cnpj).HasColumnType("VARCHAR").HasMaxLength(14).IsRequired();
             builder.Property(c => c.HasBdrs).IsRequired();
             builder.Property(c => c.HasEmissions).IsRequired();
             builder.Property(c => c.CvmCode).IsRequired();

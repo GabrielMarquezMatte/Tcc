@@ -32,8 +32,7 @@ namespace DownloadData.Services
                                                                    Dictionary<string, Industry> industries,
                                                                    [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            var industrySplit = companyResponse.IndustryClassification.Split(" / ").Distinct(StringComparer.OrdinalIgnoreCase);
-            foreach (var industryName in industrySplit)
+            foreach (var industryName in companyResponse.IndustryClassification.Split(" / ").Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if(industries.TryGetValue(industryName, out var industry))
                 {
