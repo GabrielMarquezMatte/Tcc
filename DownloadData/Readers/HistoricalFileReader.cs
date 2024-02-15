@@ -1,8 +1,10 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
+using CommunityToolkit.HighPerformance.Buffers;
 using DownloadData.Entities;
 using DownloadData.Responses;
 using DownloadData.ValueObjects;
@@ -96,14 +98,14 @@ namespace DownloadData.Readers
             var stream = entry.Open();
             await using (stream.ConfigureAwait(false))
             {
-                var buffer = new char[247];
-                var memory = buffer.AsMemory();
+                using MemoryOwner<char> buffer = MemoryOwner<char>.Allocate(247, ArrayPool<char>.Shared, AllocationMode.Default);
+                var memory = buffer.Memory;
                 using StreamReader reader = new(stream, Encoding.ASCII, leaveOpen: true, bufferSize: 1024 * 1024, detectEncodingFromByteOrderMarks: false);
                 var read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 while (read > 0)
                 {
                     Lines++;
-                    var data = ProcessLine(buffer);
+                    var data = ProcessLine(buffer.Span);
                     if (data is not null)
                     {
                         await channel.WriteAsync(data, cancellationToken).ConfigureAwait(false);

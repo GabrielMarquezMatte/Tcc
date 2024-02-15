@@ -9,11 +9,11 @@ namespace DownloadData.ValueObjects
         private readonly int _hashCode = ComputeHashCode(value);
         public readonly bool Equals(TickerKey other)
         {
-            return _value.AsSpan().SequenceEqual(other._value);
+            return _value.Equals(other._value, StringComparison.Ordinal);
         }
         public override readonly bool Equals([NotNullWhen(true)] object? obj)
         {
-            return obj is TickerKey key && key._value.AsSpan().SequenceEqual(_value);
+            return obj is TickerKey key && key._value.Equals(_value, StringComparison.Ordinal);
         }
         public override readonly int GetHashCode() => _hashCode;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

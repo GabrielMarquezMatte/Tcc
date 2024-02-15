@@ -2,7 +2,7 @@
   "profiles": {
     "DownloadData": {
       "commandName": "Project",
-      "commandLineArgs": "historical-data -s \"2010-01-01\" -t \"Year\"",
+      "commandLineArgs": "historical-data -s \"2023-01-01\" -t \"Day\"",
       "workingDirectory": ".",
       "nativeDebugging": true
     }
