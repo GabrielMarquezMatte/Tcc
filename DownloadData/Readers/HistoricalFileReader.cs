@@ -93,9 +93,10 @@ namespace DownloadData.Readers
                 Expiration = response.Expiration,
             };
         }
-        private async Task ProcessFileAsync(ZipArchiveEntry entry, CancellationToken cancellationToken)
+        public async Task ProcessZipAsync(CancellationToken cancellationToken)
         {
-            var stream = entry.Open();
+            var stopWatch = Stopwatch.StartNew();
+            var stream = zipArchive.Entries[0].Open();
             await using (stream.ConfigureAwait(false))
             {
                 using MemoryOwner<char> buffer = MemoryOwner<char>.Allocate(247, ArrayPool<char>.Shared, AllocationMode.Default);
@@ -113,11 +114,6 @@ namespace DownloadData.Readers
                     read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 }
             }
-        }
-        public async Task ProcessZipAsync(CancellationToken cancellationToken)
-        {
-            var stopWatch = Stopwatch.StartNew();
-            await ProcessFileAsync(zipArchive.Entries[0], cancellationToken).ConfigureAwait(false);
             stopWatch.Stop();
             Time = stopWatch.Elapsed;
         }

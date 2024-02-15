@@ -159,10 +159,6 @@ namespace DownloadData.Repositories
             await foreach (var data in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 var historicalKey = (data.Ticker!, data.Date);
-                if (historicalData.ContainsKey(historicalKey))
-                {
-                    continue;
-                }
                 await stockContext.HistoricalData.AddAsync(data, cancellationToken).ConfigureAwait(false);
                 historicalData.Add(historicalKey, data);
             }
