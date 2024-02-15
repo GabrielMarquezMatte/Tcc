@@ -158,9 +158,7 @@ namespace DownloadData.Repositories
             var task = ProcessAllFilesAsync(tickers, historicalData, historicalType, dates, maxDegreeOfParallelism, cancellationToken);
             await foreach (var data in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                var historicalKey = (data.Ticker!, data.Date);
                 await stockContext.HistoricalData.AddAsync(data, cancellationToken).ConfigureAwait(false);
-                historicalData.Add(historicalKey, data);
             }
             await task.ConfigureAwait(false);
             _finishedProcessingAll(logger, _lines, _time, null);
