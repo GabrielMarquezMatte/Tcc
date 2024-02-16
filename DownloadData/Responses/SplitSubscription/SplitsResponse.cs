@@ -8,11 +8,11 @@ namespace DownloadData.Responses.SplitSubscription
         [JsonPropertyName("assetIssued")]
         public required string AssetIssued { get; set; }
         [JsonPropertyName("lastDatePrior"), JsonConverter(typeof(DateConverter))]
-        public DateTime LastDate { get; set; }
+        public DateOnly LastDate { get; set; }
         [JsonPropertyName("factor"), JsonConverter(typeof(DoubleConverter))]
         public double SplitFactor { get; set; }
         [JsonPropertyName("approvedOn"), JsonConverter(typeof(DateConverter))]
-        public DateTime ApprovalDate { get; set; }
+        public DateOnly ApprovalDate { get; set; }
         [JsonPropertyName("label")]
         public string Type { get; set; } = string.Empty;
     }

@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -12,18 +13,18 @@ using DownloadData.ValueObjects;
 namespace DownloadData.Readers
 {
     public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers,
-                                             IDictionary<(Ticker ticker, DateTime Date), HistoricalData> historicalData,
+                                             IDictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
                                              ChannelWriter<HistoricalData> channel)
     {
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static DateTime ParseDate(char* span)
+        private unsafe static DateOnly ParseDate(char* span)
         {
-            return new((span[0] - '0') * 1000 + (span[1] - '0') * 100 + (span[2] - '0') * 10 + (span[3] - '0'), (span[4] - '0') * 10 + (span[5] - '0'), (span[6] - '0') * 10 + (span[7] - '0'), 0, 0, 0, DateTimeKind.Unspecified);
+            return new((span[0] - '0') * 1000 + (span[1] - '0') * 100 + (span[2] - '0') * 10 + (span[3] - '0'), (span[4] - '0') * 10 + (span[5] - '0'), (span[6] - '0') * 10 + (span[7] - '0'));
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static DateTime ParseDate(ReadOnlySpan<char> span)
+        private unsafe static DateOnly ParseDate(ReadOnlySpan<char> span)
         {
             fixed(char* ptr = span)
             {

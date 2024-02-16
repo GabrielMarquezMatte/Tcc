@@ -15,11 +15,11 @@ namespace DownloadData.Services
             LogLevel.Information,
             new EventId(1, "LinesChanged"),
             "Changed {Lines} lines in the database");
-        private static IEnumerable<DateTime> GetDates(DateTime startDate, DateTime endDate, HistoricalType historicalType)
+        private static IEnumerable<DateOnly> GetDates(DateOnly startDate, DateOnly endDate, HistoricalType historicalType)
         {
             return historicalType switch
             {
-                HistoricalType.Day => Enumerable.Range(0, (endDate - startDate).Days + 1).Select(offset => startDate.AddDays(offset)).Where(date => date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday),
+                HistoricalType.Day => Enumerable.Range(0, endDate.DayNumber - startDate.DayNumber + 1).Select(startDate.AddDays).Where(date => date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday),
                 HistoricalType.Month => Enumerable.Range(0, (endDate.Year - startDate.Year) * 12 + endDate.Month - startDate.Month + 1)
                     .Select(startDate.AddMonths),
                 HistoricalType.Year => Enumerable.Range(0, endDate.Year - startDate.Year + 1).Select(startDate.AddYears),
@@ -32,11 +32,11 @@ namespace DownloadData.Services
             var hasData = await stockContext.HistoricalData.AnyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             if (historicalDataArgs.StartDate == null)
             {
-                historicalDataArgs.StartDate = hasData ? (await stockContext.HistoricalData.MaxAsync(historicalData => historicalData.Date, cancellationToken).ConfigureAwait(false)).AddDays(1) : new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                historicalDataArgs.StartDate = hasData ? (await stockContext.HistoricalData.MaxAsync(historicalData => historicalData.Date, cancellationToken).ConfigureAwait(false)).AddDays(1) : new(2000, 1, 1);
             }
             var dates = GetDates(historicalDataArgs.StartDate.Value, historicalDataArgs.EndDate, historicalDataArgs.HistoricalType);
             var datesReadonlyCollection = dates.ToList().AsReadOnly();
-            if(datesReadonlyCollection.Count == 0)
+            if (datesReadonlyCollection.Count == 0)
             {
                 return;
             }

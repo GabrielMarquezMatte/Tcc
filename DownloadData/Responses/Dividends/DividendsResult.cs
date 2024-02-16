@@ -14,9 +14,9 @@ namespace DownloadData.Responses.Dividends
         [JsonPropertyName("valueCash"), JsonConverter(typeof(DoubleConverter))]
         public double DividendsValue { get; set; }
         [JsonPropertyName("dateApproval"), JsonConverter(typeof(DateConverter))]
-        public DateTime? ApprovalDate { get; set; }
+        public DateOnly? ApprovalDate { get; set; }
         [JsonPropertyName("lastDatePriorEx"), JsonConverter(typeof(DateConverter))]
-        public DateTime? PriorExDate { get; set; }
+        public DateOnly? PriorExDate { get; set; }
         [JsonPropertyName("typeStock")]
         public required string StockType { get; set; }
         public string StockTicker { get; set; } = string.Empty;

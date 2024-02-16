@@ -43,26 +43,26 @@ namespace DownloadData.Repositories
             "Finished processing all historical data. Processed {Lines} lines in {Time}");
         private int _lines;
         private TimeSpan _time;
-        private static void LogMessage(Action<ILogger, string, Exception?> action, ILogger logger, DateTime date, HistoricalType historicalType, Exception? exception = null)
+        private static void LogMessage(Action<ILogger, string, Exception?> action, ILogger logger, DateOnly date, HistoricalType historicalType, Exception? exception = null)
         {
             action(logger, DateToStringLog(historicalType, date), exception);
         }
         private static string TypeToString(HistoricalType historicalType) => historicalType.GetLabel() ?? throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null);
-        private static string DateToString(HistoricalType historicalType, DateTime date) => historicalType switch
+        private static string DateToString(HistoricalType historicalType, DateOnly date) => historicalType switch
         {
             HistoricalType.Day => date.ToString("ddMMyyyy", CultureInfo.InvariantCulture),
             HistoricalType.Month => date.ToString("MMyyyy", CultureInfo.InvariantCulture),
             HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
             _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
         };
-        private static string DateToStringLog(HistoricalType historicalType, DateTime date) => historicalType switch
+        private static string DateToStringLog(HistoricalType historicalType, DateOnly date) => historicalType switch
         {
             HistoricalType.Day => date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
             HistoricalType.Month => date.ToString("MM/yyyy", CultureInfo.InvariantCulture),
             HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
             _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
         };
-        private Uri BuildUri(HistoricalType historicalType, DateTime date)
+        private Uri BuildUri(HistoricalType historicalType, DateOnly date)
         {
             var url = urlOptions.Value.HistoricalData;
             StringBuilder builder = new(url.ToString());
@@ -71,7 +71,7 @@ namespace DownloadData.Repositories
             builder.Append(".ZIP");
             return new(builder.ToString());
         }
-        private async Task<ZipArchive?> DownloadAsync(SemaphoreSlim semaphore, HistoricalType historicalType, DateTime date, CancellationToken cancellationToken)
+        private async Task<ZipArchive?> DownloadAsync(SemaphoreSlim semaphore, HistoricalType historicalType, DateOnly date, CancellationToken cancellationToken)
         {
             var uri = BuildUri(historicalType, date);
             await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -99,8 +99,8 @@ namespace DownloadData.Repositories
         }
         private async Task ProcessSingleFileAsync(SemaphoreSlim semaphore,
                                                   IReadOnlyDictionary<TickerKey, Ticker> tickers,
-                                                  Dictionary<(Ticker ticker, DateTime Date), HistoricalData> historicalDataDict,
-                                                  HistoricalType historicalType, DateTime date,
+                                                  Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
+                                                  HistoricalType historicalType, DateOnly date,
                                                   CancellationToken cancellationToken)
         {
             using var zipArchive = await DownloadAsync(semaphore, historicalType, date, cancellationToken).ConfigureAwait(false);
@@ -115,9 +115,9 @@ namespace DownloadData.Repositories
             _finishedProcessing(logger, DateToStringLog(historicalType, date), reader.Lines, reader.Time, null);
         }
         private async Task ProcessAllFilesAsync(IReadOnlyDictionary<TickerKey, Ticker> tickers,
-                                                Dictionary<(Ticker ticker, DateTime Date), HistoricalData> historicalDataDict,
+                                                Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
                                                 HistoricalType historicalType,
-                                                IEnumerable<DateTime> dates, int maxDegreeOfParallelism,
+                                                IEnumerable<DateOnly> dates, int maxDegreeOfParallelism,
                                                 CancellationToken cancellationToken)
         {
             List<Task> tasks = [];
@@ -136,7 +136,7 @@ namespace DownloadData.Repositories
             }
         }
         public async Task GetHistoricalDataAsync(IReadOnlyDictionary<TickerKey, Ticker> tickers,
-                                                 ReadOnlyCollection<DateTime> dates, HistoricalType historicalType,
+                                                 ReadOnlyCollection<DateOnly> dates, HistoricalType historicalType,
                                                  int maxDegreeOfParallelism, CancellationToken cancellationToken)
         {
             var startDate = dates.Min();

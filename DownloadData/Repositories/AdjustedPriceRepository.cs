@@ -5,7 +5,7 @@ namespace DownloadData.Repositories
 {
     public sealed class AdjustedPriceRepository(StockContext stockContext)
     {
-        public async IAsyncEnumerable<(DateTime, double)> GetSplitFactorAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+        public async IAsyncEnumerable<(DateOnly, double)> GetSplitFactorAsync([EnumeratorCancellation] CancellationToken cancellationToken)
         {
             double lastSplitFactor = 1;
             await foreach (var splitFactor in stockContext.Splits.AsAsyncEnumerable().ConfigureAwait(false).WithCancellation(cancellationToken))

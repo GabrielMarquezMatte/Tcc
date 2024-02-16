@@ -113,7 +113,7 @@ namespace DownloadData.Services
             }
         }
         private async Task ProcessSplitsAsync(Ticker ticker, IEnumerable<SplitsResponse> splits,
-                                              Dictionary<(Ticker, DateTime), Split> splitsInDb,
+                                              Dictionary<(Ticker, DateOnly), Split> splitsInDb,
                                               CancellationToken cancellationToken)
         {
             foreach (var split in splits)
@@ -140,7 +140,7 @@ namespace DownloadData.Services
             }
         }
         private async Task ProcessDividendsAsync(Ticker ticker, IEnumerable<DividendsResult> dividends,
-                                                 Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                 Dictionary<(Ticker, DateOnly), Dividend> dividendsInDb,
                                                  CancellationToken cancellationToken)
         {
             foreach (var dividend in dividends)
@@ -169,7 +169,7 @@ namespace DownloadData.Services
             }
         }
         private async Task ProcessSubscriptionsAsync(Ticker ticker, IEnumerable<SubscriptionResponse> subscriptions,
-                                                    Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
+                                                    Dictionary<(Ticker, DateOnly), Subscription> subscriptionsInDb,
                                                     CancellationToken cancellationToken)
         {
             foreach (var subscription in subscriptions)
@@ -178,7 +178,7 @@ namespace DownloadData.Services
                 {
                     continue;
                 }
-                var subscriptionKey = (ticker, subscription.LastDate);
+                var subscriptionKey = (ticker, DateOnly.FromDateTime(subscription.LastDate));
                 if (subscriptionsInDb.ContainsKey(subscriptionKey))
                 {
                     continue;
@@ -187,7 +187,7 @@ namespace DownloadData.Services
                 {
                     Ticker = ticker,
                     ApprovalDate = subscription.ApprovalDate,
-                    LastDate = subscription.LastDate,
+                    LastDate = subscriptionKey.Item2,
                     Percentage = subscription.Percentage,
                     PriceUnit = subscription.PriceUnit,
                 };
@@ -197,9 +197,9 @@ namespace DownloadData.Services
         }
         private async Task ProcessFinancialEventsAsync(Ticker ticker,
                                                        CompanyResponse companyResponse,
-                                                       Dictionary<(Ticker, DateTime), Split> splitsInDb,
-                                                       Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
-                                                       Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                       Dictionary<(Ticker, DateOnly), Split> splitsInDb,
+                                                       Dictionary<(Ticker, DateOnly), Subscription> subscriptionsInDb,
+                                                       Dictionary<(Ticker, DateOnly), Dividend> dividendsInDb,
                                                        CancellationToken cancellationToken)
         {
             if (companyResponse.SplitSubscription != null)
@@ -218,9 +218,9 @@ namespace DownloadData.Services
                                                              Dictionary<string, Ticker> tickersInDb,
                                                              Dictionary<string, Industry> industriesInDb,
                                                              Dictionary<(string, string), CompanyIndustry> companyIndustriesInDb,
-                                                             Dictionary<(Ticker, DateTime), Split> splitsInDb,
-                                                             Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
-                                                             Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                             Dictionary<(Ticker, DateOnly), Split> splitsInDb,
+                                                             Dictionary<(Ticker, DateOnly), Subscription> subscriptionsInDb,
+                                                             Dictionary<(Ticker, DateOnly), Dividend> dividendsInDb,
                                                              CancellationToken cancellationToken)
         {
             var company = await SaveCompanyAsync(companyResponse, companiesInDb, cancellationToken).ConfigureAwait(false);
@@ -240,9 +240,9 @@ namespace DownloadData.Services
                                                         Dictionary<string, Ticker> tickersInDb,
                                                         Dictionary<string, Industry> industriesInDb,
                                                         Dictionary<(string, string), CompanyIndustry> companyIndustriesInDb,
-                                                        Dictionary<(Ticker, DateTime), Split> splitsInDb,
-                                                        Dictionary<(Ticker, DateTime), Subscription> subscriptionsInDb,
-                                                        Dictionary<(Ticker, DateTime), Dividend> dividendsInDb,
+                                                        Dictionary<(Ticker, DateOnly), Split> splitsInDb,
+                                                        Dictionary<(Ticker, DateOnly), Subscription> subscriptionsInDb,
+                                                        Dictionary<(Ticker, DateOnly), Dividend> dividendsInDb,
                                                         CompanyDataArgs companyDataArgs,
                                                         CancellationToken cancellationToken)
         {

@@ -7,10 +7,10 @@ namespace DownloadData.Models.Arguments
     {
         [Option('s', Description = "The start date for the historical data.")]
         [HasDefaultValue]
-        public DateTime? StartDate { get; set; } = null;
+        public DateOnly? StartDate { get; set; }
         [Option('e', Description = "The end date for the historical data.")]
         [HasDefaultValue]
-        public DateTime EndDate { get; set; } = DateTime.Now;
+        public DateOnly EndDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
         [Option('t', Description = "The type of historical data to download.")]
         [HasDefaultValue]
         public HistoricalType HistoricalType { get; set; } = HistoricalType.Day;

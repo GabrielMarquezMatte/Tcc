@@ -4,24 +4,24 @@ using System.Text.Json.Serialization;
 
 namespace DownloadData.Converters
 {
-    public sealed class DateConverter : JsonConverter<DateTime>
+    public sealed class DateConverter : JsonConverter<DateOnly>
     {
         private static readonly CultureInfo Culture = CultureInfo.CreateSpecificCulture("pt-BR");
-        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override DateOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var value = reader.GetString();
             if(string.IsNullOrEmpty(value))
             {
-                return DateTime.MinValue;
+                return DateOnly.MinValue;
             }
             return reader.TokenType switch
             {
-                JsonTokenType.String => DateTime.ParseExact(value, "dd/MM/yyyy", Culture, DateTimeStyles.AssumeLocal),
+                JsonTokenType.String => DateOnly.ParseExact(value, "dd/MM/yyyy", Culture, DateTimeStyles.AssumeLocal),
                 _ => throw new JsonException($"Invalid date value: {value}"),
             };
         }
 
-        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, DateOnly value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToString("dd/MM/yyyy", Culture));
         }
