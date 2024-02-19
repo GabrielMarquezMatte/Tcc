@@ -160,31 +160,28 @@ namespace DownloadData.Repositories
             }
             company.Dividends = dividends.Dividends;
         }
-        private async Task ProcessValidCompanyAsync(CompanyResponse company, CompanyDataArgs companyDataArgs, SemaphoreSlim semaphore, CancellationToken cancellationToken)
+        private async Task ProcessValidCompanyAsync(CompanyResponse company, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
             if (company.OtherCodes == null)
             {
                 await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
                 return;
             }
-            List<Task> tasks = new(2);
-            if (companyDataArgs.CompaniesSplits.Any(x => company.OtherCodes.Any(code => string.Equals(code.Code, x, StringComparison.Ordinal))))
-            {
-                var task = ProcessSplitSubscriptionAsync(company, semaphore, cancellationToken);
-                tasks.Add(task);
-            }
-            tasks.Add(ProcessDividendsAsync(company, semaphore, cancellationToken));
+            Task[] tasks =
+            [
+                ProcessSplitSubscriptionAsync(company, semaphore, cancellationToken),
+                ProcessDividendsAsync(company, semaphore, cancellationToken),
+            ];
             await Task.WhenAll(tasks).ConfigureAwait(false);
             await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
         }
         private async Task ProcessCompanyResponseAsync(int codeCvm, SemaphoreSlim semaphore,
-                                                       CompanyDataArgs companyDataArgs,
                                                        CancellationToken cancellationToken)
         {
             var company = await FetchCompanyDetailsAsync(codeCvm, semaphore, cancellationToken).ConfigureAwait(false);
             if (ShouldProcessCompany(company))
             {
-                await ProcessValidCompanyAsync(company!, companyDataArgs, semaphore, cancellationToken).ConfigureAwait(false);
+                await ProcessValidCompanyAsync(company!, semaphore, cancellationToken).ConfigureAwait(false);
             }
         }
         private async Task ProcessCompaniesAsync(CompanyDataArgs companyDataArgs, CancellationToken cancellationToken)
@@ -194,13 +191,13 @@ namespace DownloadData.Repositories
             {
                 if (companyDataArgs.Companies.Any())
                 {
-                    var tasks = companyDataArgs.Companies.Select(async codeCvm => await ProcessCompanyResponseAsync(codeCvm, semaphore, companyDataArgs, cancellationToken).ConfigureAwait(false));
+                    var tasks = companyDataArgs.Companies.Select(async codeCvm => await ProcessCompanyResponseAsync(codeCvm, semaphore, cancellationToken).ConfigureAwait(false));
                     await Task.WhenAll(tasks).ConfigureAwait(false);
                     return;
                 }
                 var response = await FetchCompaniesAsync(semaphore, cancellationToken).ConfigureAwait(false);
                 if (response?.Results.Any() != true) return;
-                var tasks1 = response.Results.Select(async result => await ProcessCompanyResponseAsync(result.CodeCvm, semaphore, companyDataArgs, cancellationToken).ConfigureAwait(false));
+                var tasks1 = response.Results.Select(async result => await ProcessCompanyResponseAsync(result.CodeCvm, semaphore, cancellationToken).ConfigureAwait(false));
                 await Task.WhenAll(tasks1).ConfigureAwait(false);
             }
             finally

@@ -13,7 +13,7 @@ namespace DownloadData.Responses.SplitSubscription
         public double PriceUnit { get; set; }
         [JsonPropertyName("approvedOn"), JsonConverter(typeof(DateConverter))]
         public DateOnly ApprovalDate { get; set; }
-        [JsonPropertyName("lastDatePrior")]
-        public DateTime LastDate { get; set; }
+        [JsonPropertyName("lastDatePrior"), JsonConverter(typeof(DateConverter))]
+        public DateOnly LastDate { get; set; }
     }
 }

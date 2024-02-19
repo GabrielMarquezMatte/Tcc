@@ -178,7 +178,7 @@ namespace DownloadData.Services
                 {
                     continue;
                 }
-                var subscriptionKey = (ticker, DateOnly.FromDateTime(subscription.LastDate));
+                var subscriptionKey = (ticker, subscription.LastDate);
                 if (subscriptionsInDb.ContainsKey(subscriptionKey))
                 {
                     continue;

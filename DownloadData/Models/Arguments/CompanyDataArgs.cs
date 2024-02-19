@@ -4,28 +4,11 @@ namespace DownloadData.Models.Arguments
 {
     public sealed class CompanyDataArgs : ICommandParameterSet
     {
-        private IEnumerable<string> _companies_splits = [];
         private IEnumerable<int> _companies = [];
-        private string _splits = string.Empty;
         private string _company = string.Empty;
         [Option('j', Description = "Maximum parallelism for downloading company data.")]
         [HasDefaultValue]
         public int MaxParallelism { get; set; } = Environment.ProcessorCount;
-        [Option('s', Description = "Tickers to download split data.")]
-        [HasDefaultValue]
-        public string Splits
-        {
-            get
-            {
-                return _splits;
-
-            }
-            set
-            {
-                _companies_splits = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                _splits = value;
-            }
-        }
         [Option('c', Description = "CVM Codes to download company data.")]
         [HasDefaultValue]
         public string Company
@@ -40,7 +23,6 @@ namespace DownloadData.Models.Arguments
                 _company = value;
             }
         }
-        public IEnumerable<string> CompaniesSplits => _companies_splits;
         public IEnumerable<int> Companies => _companies;
     }
 }

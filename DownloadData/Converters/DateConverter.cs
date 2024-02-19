@@ -16,7 +16,7 @@ namespace DownloadData.Converters
             }
             return reader.TokenType switch
             {
-                JsonTokenType.String => DateOnly.ParseExact(value, "dd/MM/yyyy", Culture, DateTimeStyles.AssumeLocal),
+                JsonTokenType.String => DateOnly.TryParseExact(value, "dd/MM/yyyy", Culture, DateTimeStyles.None, out var date) ? date : throw new JsonException($"Invalid date value: {value}"),
                 _ => throw new JsonException($"Invalid date value: {value}"),
             };
         }
