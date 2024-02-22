@@ -3,13 +3,11 @@ using Cocona;
 using Microsoft.Extensions.Logging;
 using DownloadData.Models.Arguments;
 using DownloadData.Services;
-using DownloadData.Repositories;
 
 namespace DownloadData.Commands
 {
     public sealed class StockDataCommand(CompanyDataService companyDataService,
-                                         HistoricalDataService historicalDataService,
-                                         AdjustedPriceRepository adjustedPriceRepository, ILogger<StockDataCommand> logger)
+                                         HistoricalDataService historicalDataService, ILogger<StockDataCommand> logger)
     {
         private static readonly Action<ILogger, TimeSpan, Exception?> _commandTime = LoggerMessage.Define<TimeSpan>(
             LogLevel.Information,
@@ -35,14 +33,6 @@ namespace DownloadData.Commands
         {
             return ExecuteCommandAsync(
                 token => historicalDataService.ProcessFilesAsync(args, token),
-                logger,
-                cancellationToken);
-        }
-        [Command("adjusted-prices", Description = "Calculate adjusted prices for historical data.")]
-        public Task ExecuteAsync([Ignore] CancellationToken cancellationToken)
-        {
-            return ExecuteCommandAsync(
-                async task => await adjustedPriceRepository.GetSplitFactorAsync(task).GetAsyncEnumerator(task).MoveNextAsync().ConfigureAwait(false),
                 logger,
                 cancellationToken);
         }

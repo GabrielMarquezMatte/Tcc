@@ -32,7 +32,7 @@ namespace DownloadData.Repositories
             "Fetched split subscription for company {IssuingCompany}");
         private static readonly JsonSerializerOptions JsonSerializerOptions = new()
         {
-            Converters = { new DateConverter(), new DoubleConverter()},
+            Converters = { new DateConverter(), new DoubleConverter(), new LongConverter() },
         };
         private readonly Channel<CompanyResponse> CompanyChannel = Channel.CreateUnbounded<CompanyResponse>();
         private static Uri CreateUri<T>(Uri baseUri, T requestData)
@@ -51,7 +51,7 @@ namespace DownloadData.Repositories
                 {
                     return default;
                 }
-                if(jsonSerializer != null)
+                if (jsonSerializer != null)
                 {
                     return await response.Content.ReadFromJsonAsync<T>(jsonSerializer, cancellationToken).ConfigureAwait(false);
                 }

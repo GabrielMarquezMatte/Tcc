@@ -17,16 +17,26 @@ namespace DownloadData.Installers
             services.AddHttpClient<CompanyDataRepository>("CompanyClient", x =>
             {
                 x.DefaultRequestHeaders.Add("Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
-                x.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8");
-                x.DefaultRequestHeaders.Add("Cookie", "dtCookie=v_4_srv_28_sn_F5D93CE107FFFDECF0B238E08BFEC501_perc_100000_ol_0_mul_1_app-3Afd69ce40c52bd20e_0_rcs-3Acss_0; TS0171d45d=011d592ce1079517c8b23e5c2535dd69de96df1de783aae6cebe03b889a52be62d6484725d6c0eb8467d79b38e67d179003ed58a4c; BIGipServerpool_sistemaswebb3-listados_8443_WAF=1329140746.64288.0000");
+                x.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
                 x.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
                 x.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
-                x.DefaultRequestHeaders.Add("Host", "sistemaswebb3-listados.b3.com.br");
-            });
-            services.AddHttpClient<HistoricalDataRepository>("HistoricalClient", x =>
+                x.DefaultRequestHeaders.Add("Sec-Ch-Ua", "Not A(Brand\";v=\"99\", \"Brave\";v=\"121\", \"Chromium\";v=\"121");
+                x.DefaultRequestHeaders.Add("Sec-Ch-Ua-Mobile", "?0");
+                x.DefaultRequestHeaders.Add("Sec-Ch-Ua-Platform", "Windows");
+                x.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "document");
+                x.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "navigate");
+                x.DefaultRequestHeaders.Add("Sec-Fetch-Site", "none");
+                x.DefaultRequestHeaders.Add("Sec-Fetch-User", "?1");
+                x.DefaultRequestHeaders.Add("Sec-Gpc", "1");
+                x.DefaultRequestHeaders.Add("Cookie", "dtCookie=v_4_srv_28_sn_6E7DD36F246236B927F2B0FD52486F0B_perc_100000_ol_0_mul_1_app-3Afd69ce40c52bd20e_1_rcs-3Acss_0; TS0171d45d=011d592ce19af04c8f6dee0ca36e290927e614f47182ac73cca64f461945a37e4e5206386731d26005a6ac4de5c5b6bf6f471f8cd1; BIGipServerpool_sistemaswebb3-listados_8443_WAF=1329140746.64288.0000");
+            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
-                x.DefaultRequestHeaders.Add("Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+                AllowAutoRedirect = true,
+                UseCookies = true,
+                UseDefaultCredentials = false,
             });
+            services.AddHttpClient<HistoricalDataRepository>("HistoricalClient", x => x.DefaultRequestHeaders.Add("Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"));
             services.AddLogging()
                     .AddScoped<CompanyDataRepository>()
                     .AddScoped<CompanyDataService>()

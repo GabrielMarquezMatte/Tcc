@@ -12,7 +12,9 @@ namespace DownloadData.Entities
         public bool HasBdrs { get; set; }
         public bool HasEmissions { get; set; }
         public int CvmCode { get; set; }
-        public ICollection<Ticker>? Tickers { get; }
-        public ICollection<CompanyIndustry>? Industries { get; }
+        public long CommonStockShares { get; set; }
+        public long PreferredStockShares { get; set; }
+        public ICollection<Ticker> Tickers { get; } = [];
+        public ICollection<CompanyIndustry> Industries { get; } = [];
     }
 }

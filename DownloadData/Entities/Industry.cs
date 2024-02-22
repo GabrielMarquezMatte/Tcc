@@ -7,6 +7,6 @@ namespace DownloadData.Entities
         public int Id { get; set; }
         [Required, MaxLength(40)]
         public required string Name { get; set; }
-        public ICollection<CompanyIndustry>? Companies { get; }
+        public ICollection<CompanyIndustry> Companies { get; } = [];
     }
 }

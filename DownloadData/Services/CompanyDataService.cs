@@ -61,6 +61,8 @@ namespace DownloadData.Services
                 CvmCode = companyResponse.CodeCvm,
                 HasBdrs = companyResponse.HasBdrs,
                 HasEmissions = companyResponse.HasEmissions,
+                CommonStockShares = companyResponse.SplitSubscription?.CommonStockShares ?? 0,
+                PreferredStockShares = companyResponse.SplitSubscription?.PreferredStockShares ?? 0,
             };
             await stockContext.Companies.AddAsync(company, cancellationToken).ConfigureAwait(false);
             companies[company.Cnpj] = company;
