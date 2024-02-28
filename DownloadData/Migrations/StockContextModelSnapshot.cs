@@ -81,35 +81,6 @@ namespace DownloadData.Migrations
                     b.ToTable("CompanyIndustries", (string)null);
                 });
 
-            modelBuilder.Entity("DownloadData.Entities.Dividend", b =>
-                {
-                    b.Property<int>("TickerId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly>("ApprovalDate")
-                        .HasColumnType("DATE");
-
-                    b.Property<double>("ClosePrice")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("DividendType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<double>("DividendsPercentage")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("DividendsValue")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateOnly>("PriorExDate")
-                        .HasColumnType("DATE");
-
-                    b.HasKey("TickerId", "ApprovalDate");
-
-                    b.ToTable("Dividends", (string)null);
-                });
-
             modelBuilder.Entity("DownloadData.Entities.HistoricalData", b =>
                 {
                     b.Property<int>("TickerId")
@@ -165,50 +136,26 @@ namespace DownloadData.Migrations
                     b.ToTable("Industries", (string)null);
                 });
 
-            modelBuilder.Entity("DownloadData.Entities.Split", b =>
+            modelBuilder.Entity("DownloadData.Entities.NelsonSiegel", b =>
                 {
-                    b.Property<int>("TickerId")
-                        .HasColumnType("integer");
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
 
-                    b.Property<DateOnly>("LastDate")
-                        .HasColumnType("DATE");
-
-                    b.Property<DateOnly>("ApprovalDate")
-                        .HasColumnType("DATE");
-
-                    b.Property<double>("SplitFactor")
+                    b.Property<double>("Beta0")
                         .HasColumnType("double precision");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(13)
-                        .HasColumnType("VARCHAR");
-
-                    b.HasKey("TickerId", "LastDate");
-
-                    b.ToTable("Splits", (string)null);
-                });
-
-            modelBuilder.Entity("DownloadData.Entities.Subscription", b =>
-                {
-                    b.Property<int>("TickerId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly>("LastDate")
-                        .HasColumnType("DATE");
-
-                    b.Property<DateOnly>("ApprovalDate")
-                        .HasColumnType("DATE");
-
-                    b.Property<double>("Percentage")
+                    b.Property<double>("Beta1")
                         .HasColumnType("double precision");
 
-                    b.Property<double>("PriceUnit")
+                    b.Property<double>("Beta2")
                         .HasColumnType("double precision");
 
-                    b.HasKey("TickerId", "LastDate");
+                    b.Property<double>("Tau0")
+                        .HasColumnType("double precision");
 
-                    b.ToTable("Subscriptions", (string)null);
+                    b.HasKey("Date");
+
+                    b.ToTable("NelsonSiegel");
                 });
 
             modelBuilder.Entity("DownloadData.Entities.Ticker", b =>
@@ -261,43 +208,10 @@ namespace DownloadData.Migrations
                     b.Navigation("Industry");
                 });
 
-            modelBuilder.Entity("DownloadData.Entities.Dividend", b =>
-                {
-                    b.HasOne("DownloadData.Entities.Ticker", "Ticker")
-                        .WithMany("Dividends")
-                        .HasForeignKey("TickerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ticker");
-                });
-
             modelBuilder.Entity("DownloadData.Entities.HistoricalData", b =>
                 {
                     b.HasOne("DownloadData.Entities.Ticker", "Ticker")
                         .WithMany("HistoricalData")
-                        .HasForeignKey("TickerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ticker");
-                });
-
-            modelBuilder.Entity("DownloadData.Entities.Split", b =>
-                {
-                    b.HasOne("DownloadData.Entities.Ticker", "Ticker")
-                        .WithMany("Splits")
-                        .HasForeignKey("TickerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ticker");
-                });
-
-            modelBuilder.Entity("DownloadData.Entities.Subscription", b =>
-                {
-                    b.HasOne("DownloadData.Entities.Ticker", "Ticker")
-                        .WithMany("Subscriptions")
                         .HasForeignKey("TickerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -330,13 +244,7 @@ namespace DownloadData.Migrations
 
             modelBuilder.Entity("DownloadData.Entities.Ticker", b =>
                 {
-                    b.Navigation("Dividends");
-
                     b.Navigation("HistoricalData");
-
-                    b.Navigation("Splits");
-
-                    b.Navigation("Subscriptions");
                 });
 #pragma warning restore 612, 618
         }

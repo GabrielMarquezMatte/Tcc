@@ -1,6 +1,4 @@
 using System.Text.Json.Serialization;
-using DownloadData.Responses.Dividends;
-using DownloadData.Responses.SplitSubscription;
 
 namespace DownloadData.Responses
 {
@@ -24,7 +22,5 @@ namespace DownloadData.Responses
         public required string TradingName { get; set; }
         [JsonPropertyName("otherCodes")]
         public IEnumerable<CompanyCodes>? OtherCodes { get; set; }
-        public SplitSubscriptionResponse? SplitSubscription { get; set; }
-        public IEnumerable<DividendsResult>? Dividends { get; set; }
     }
 }

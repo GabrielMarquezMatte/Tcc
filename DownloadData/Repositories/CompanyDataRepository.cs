@@ -10,30 +10,15 @@ using DownloadData.Models.Options;
 using DownloadData.Requests;
 using DownloadData.Responses;
 using DownloadData.Responses.Companies;
-using DownloadData.Responses.Dividends;
-using DownloadData.Responses.SplitSubscription;
-using DownloadData.Converters;
 
 namespace DownloadData.Repositories
 {
     public sealed class CompanyDataRepository(HttpClient httpClient, IOptions<DownloadUrlsOptions> urlOptions, ILogger<CompanyDataRepository> logger)
     {
-        private static readonly Action<ILogger, string, Exception?> _startFetchSplitSubscription = LoggerMessage.Define<string>(
-            LogLevel.Information,
-            new EventId(1, "StartFetchSplitSubscription"),
-            "Start fetching split subscription for company {IssuingCompany}");
         private static readonly Action<ILogger, Uri, Exception> _fetchError = LoggerMessage.Define<Uri>(
             LogLevel.Error,
             new EventId(2, "FetchError"),
             "Error fetching data from {Uri}");
-        private static readonly Action<ILogger, string, Exception?> _fetchSplitSubscription = LoggerMessage.Define<string>(
-            LogLevel.Information,
-            new EventId(3, "FetchSplitSubscription"),
-            "Fetched split subscription for company {IssuingCompany}");
-        private static readonly JsonSerializerOptions JsonSerializerOptions = new()
-        {
-            Converters = { new DateConverter(), new DoubleConverter(), new LongConverter() },
-        };
         private readonly Channel<CompanyResponse> CompanyChannel = Channel.CreateUnbounded<CompanyResponse>();
         private static Uri CreateUri<T>(Uri baseUri, T requestData)
         {
@@ -88,33 +73,11 @@ namespace DownloadData.Repositories
             var url = CreateUri(urlOptions.Value.ListCompanies, request);
             return FetchDataAsync<CompaniesResponse>(url, semaphoreSlim, null, cancellationToken, CancellationToken.None);
         }
-        private async Task<IEnumerable<SplitSubscriptionResponse>?> FetchSplitSubscriptionAsync(string issuingCompany, SemaphoreSlim semaphore, CancellationToken cancellationToken)
-        {
-            SplitSubscriptionRequest request = new()
-            {
-                IssuingCompany = issuingCompany,
-            };
-            var url = CreateUri(urlOptions.Value.SplitSubscription, request);
-            _startFetchSplitSubscription(logger, issuingCompany, null);
-            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cancellationTokenSource.CancelAfter(50000);
-            var data = await FetchDataAsync<IEnumerable<SplitSubscriptionResponse>>(url, semaphore, JsonSerializerOptions, cancellationToken, cancellationTokenSource.Token).ConfigureAwait(false);
-            _fetchSplitSubscription(logger, issuingCompany, null);
-            return data;
-        }
         private Task<CompanyResponse?> FetchCompanyDetailsAsync(int codeCvm, SemaphoreSlim semaphore, CancellationToken cancellationToken)
         {
             CompanyRequest request = new() { CodeCvm = codeCvm };
             var url = CreateUri(urlOptions.Value.CompanyDetails, request);
             return FetchDataAsync<CompanyResponse>(url, semaphore, null, cancellationToken, CancellationToken.None);
-        }
-        private async Task<DividendsResponse?> FetchDividendsAsync(string tradingName, SemaphoreSlim semaphore, CancellationToken cancellationToken)
-        {
-            DividendsRequest request = new() { TradingName = tradingName };
-            var url = CreateUri(urlOptions.Value.Dividends, request);
-            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cancellationTokenSource.CancelAfter(5000);
-            return await FetchDataAsync<DividendsResponse>(url, semaphore, JsonSerializerOptions, cancellationToken, cancellationTokenSource.Token).ConfigureAwait(false);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool ShouldProcessCompany(CompanyResponse? company)
@@ -125,63 +88,13 @@ namespace DownloadData.Repositories
                    && company.CodeCvm != 0
                    && !string.IsNullOrEmpty(company.IndustryClassification);
         }
-        private async Task ProcessSplitSubscriptionAsync(CompanyResponse company, SemaphoreSlim semaphore, CancellationToken cancellationToken)
-        {
-            var splitResult = await FetchSplitSubscriptionAsync(company.IssuingCompany, semaphore, cancellationToken).ConfigureAwait(false);
-            if (splitResult?.Any() == true)
-            {
-                company.SplitSubscription = splitResult.First();
-            }
-        }
-        private async Task ProcessDividendsAsync(CompanyResponse company, SemaphoreSlim semaphore, CancellationToken cancellationToken)
-        {
-            if (company.OtherCodes == null)
-            {
-                return;
-            }
-            var dividends = await FetchDividendsAsync(company.TradingName, semaphore, cancellationToken).ConfigureAwait(false);
-            if (dividends?.Dividends.Any() != true)
-            {
-                return;
-            }
-            var codes = company.OtherCodes.Select(x => x.Code).Distinct(StringComparer.Ordinal)
-                                          .Where(x => x.Length == 5).ToDictionary(x => x.Last(), x => x);
-            foreach (var dividend in dividends.Dividends)
-            {
-                switch (dividend.StockType)
-                {
-                    case "ON":
-                        dividend.StockTicker = codes.GetValueOrDefault('3', string.Empty);
-                        break;
-                    case "PN":
-                        dividend.StockTicker = codes.GetValueOrDefault('4', string.Empty);
-                        break;
-                }
-            }
-            company.Dividends = dividends.Dividends;
-        }
-        private async Task ProcessValidCompanyAsync(CompanyResponse company, SemaphoreSlim semaphore, CancellationToken cancellationToken)
-        {
-            if (company.OtherCodes == null)
-            {
-                await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-            Task[] tasks =
-            [
-                ProcessSplitSubscriptionAsync(company, semaphore, cancellationToken),
-                ProcessDividendsAsync(company, semaphore, cancellationToken),
-            ];
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-            await CompanyChannel.Writer.WriteAsync(company, cancellationToken).ConfigureAwait(false);
-        }
         private async Task ProcessCompanyResponseAsync(int codeCvm, SemaphoreSlim semaphore,
                                                        CancellationToken cancellationToken)
         {
             var company = await FetchCompanyDetailsAsync(codeCvm, semaphore, cancellationToken).ConfigureAwait(false);
             if (ShouldProcessCompany(company))
             {
-                await ProcessValidCompanyAsync(company!, semaphore, cancellationToken).ConfigureAwait(false);
+                await CompanyChannel.Writer.WriteAsync(company!, cancellationToken).ConfigureAwait(false);
             }
         }
         private async Task ProcessCompaniesAsync(CompanyDataArgs companyDataArgs, CancellationToken cancellationToken)

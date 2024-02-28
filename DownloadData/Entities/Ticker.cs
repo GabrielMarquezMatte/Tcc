@@ -12,8 +12,5 @@ namespace DownloadData.Entities
         public required string StockTicker { get; set; }
         public Company? Company { get; set; }
         public ICollection<HistoricalData> HistoricalData { get; } = [];
-        public ICollection<Subscription> Subscriptions { get; } = [];
-        public ICollection<Split> Splits { get; } = [];
-        public ICollection<Dividend> Dividends { get; } = [];
     }
 }
