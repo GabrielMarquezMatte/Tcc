@@ -6,6 +6,8 @@ using DownloadData.Data;
 using DownloadData.Interfaces;
 using DownloadData.Repositories;
 using DownloadData.Services;
+using YahooQuotesApi;
+using NodaTime;
 
 namespace DownloadData.Installers
 {
@@ -19,7 +21,14 @@ namespace DownloadData.Installers
                     .AddScoped<CompanyDataRepository>()
                     .AddScoped<CompanyDataService>()
                     .AddScoped<HistoricalDataRepository>()
-                    .AddScoped<HistoricalDataService>();
+                    .AddScoped<HistoricalDataService>()
+                    .AddSingleton(_ =>
+                    {
+                        YahooQuotesBuilder builder = new();
+                        builder.WithHistoryStartDate(Instant.FromUtc(2020, 1, 1, 0, 0));
+                        return builder.Build();
+                    })
+                    .AddScoped<YahooService>();
         }
     }
 }

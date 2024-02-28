@@ -11,6 +11,7 @@ namespace DownloadData.Data
         public DbSet<Industry> Industries { get; set; }
         public DbSet<CompanyIndustry> CompanyIndustries { get; set; }
         public DbSet<HistoricalData> HistoricalData { get; set; }
+        public DbSet<HistoricalDataYahoo> HistoricalDataYahoos { get; set; }
         public DbSet<NelsonSiegel> NelsonSiegel { get; set; }
         private static bool CheckInterfaces(Type type)
         {

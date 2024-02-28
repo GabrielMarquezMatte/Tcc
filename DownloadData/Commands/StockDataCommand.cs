@@ -7,7 +7,9 @@ using DownloadData.Services;
 namespace DownloadData.Commands
 {
     public sealed class StockDataCommand(CompanyDataService companyDataService,
-                                         HistoricalDataService historicalDataService, ILogger<StockDataCommand> logger)
+                                         HistoricalDataService historicalDataService,
+                                         YahooService yahooService,
+                                         ILogger<StockDataCommand> logger)
     {
         private static readonly Action<ILogger, TimeSpan, Exception?> _commandTime = LoggerMessage.Define<TimeSpan>(
             LogLevel.Information,
@@ -33,6 +35,14 @@ namespace DownloadData.Commands
         {
             return ExecuteCommandAsync(
                 token => historicalDataService.ProcessFilesAsync(args, token),
+                logger,
+                cancellationToken);
+        }
+        [Command("historical-data-yahoo", Description = "Download historical data from the Yahoo Finance API and save it to the database.")]
+        public Task ExecuteAsync([Ignore] CancellationToken cancellationToken)
+        {
+            return ExecuteCommandAsync(
+                yahooService.ProcessAsync,
                 logger,
                 cancellationToken);
         }
