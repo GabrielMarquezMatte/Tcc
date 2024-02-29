@@ -65,7 +65,7 @@ class Optimizer:
     
     @staticmethod
     async def fit(data:pd.DataFrame, loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor) -> OptimizeResult:
-        x = (data["Vencimento"] - data["Dia"]).dt.days/252
+        x = (data["Vencimento"] - data["Dia"]).dt.days/365.25
         y = data["Taxa Compra Manhã"]
         try:
             popt, _ = await loop.run_in_executor(executor, Optimizer._curve_fit, Optimizer.nelson_siegel, x, y, (0.1, 0.01, -0.05, 1))
