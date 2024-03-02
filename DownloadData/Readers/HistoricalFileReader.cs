@@ -15,6 +15,11 @@ namespace DownloadData.Readers
                                              IDictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
                                              ChannelWriter<HistoricalData> channel)
     {
+        private readonly Channel<Memory<char>> fileChannel = Channel.CreateUnbounded<Memory<char>>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = true
+        });
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -25,7 +30,7 @@ namespace DownloadData.Readers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe static DateOnly ParseDate(ReadOnlySpan<char> span)
         {
-            fixed(char* ptr = span)
+            fixed (char* ptr = span)
             {
                 return ParseDate(ptr);
             }
@@ -51,7 +56,7 @@ namespace DownloadData.Readers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe static double ParseDouble(ReadOnlySpan<char> span)
         {
-            fixed(char* ptr = span)
+            fixed (char* ptr = span)
             {
                 return ParseDoubleUnsafe(ptr);
             }
@@ -76,7 +81,7 @@ namespace DownloadData.Readers
                 return null;
             }
             var response = ParseLine(tickerSpan, span);
-            if(historicalData.ContainsKey((ticker, response.Date)))
+            if (historicalData.ContainsKey((ticker, response.Date)))
             {
                 return null;
             }
@@ -93,9 +98,8 @@ namespace DownloadData.Readers
                 Expiration = response.Expiration,
             };
         }
-        public async Task ProcessZipAsync(CancellationToken cancellationToken)
+        private async Task ReadFileAsync(CancellationToken cancellationToken)
         {
-            var stopWatch = Stopwatch.StartNew();
             var stream = zipArchive.Entries[0].Open();
             await using (stream.ConfigureAwait(false))
             {
@@ -105,15 +109,26 @@ namespace DownloadData.Readers
                 var read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 while (read > 0)
                 {
-                    Lines++;
-                    var data = ProcessLine(buffer.Span);
-                    if (data is not null)
-                    {
-                        await channel.WriteAsync(data, cancellationToken).ConfigureAwait(false);
-                    }
+                    await fileChannel.Writer.WriteAsync(memory, cancellationToken).ConfigureAwait(false);
                     read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 }
+                fileChannel.Writer.Complete();
             }
+        }
+        public async Task ProcessZipAsync(CancellationToken cancellationToken)
+        {
+            var stopWatch = Stopwatch.StartNew();
+            var readTask = ReadFileAsync(cancellationToken);
+            await foreach(var buffer in fileChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                Lines++;
+                var data = ProcessLine(buffer.Span);
+                if (data is not null)
+                {
+                    await channel.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            await readTask.ConfigureAwait(false);
             stopWatch.Stop();
             Time = stopWatch.Elapsed;
         }
