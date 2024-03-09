@@ -11,7 +11,7 @@ namespace DownloadData.Services
 {
     public sealed class HistoricalDataService(StockContext stockContext, HistoricalDataRepository historicalDataRepository, ILogger<HistoricalDataService> logger)
     {
-        private static readonly Action<ILogger, string, Exception?> _linesChanged = LoggerMessage.Define<string>(
+        private static readonly Action<ILogger, int, Exception?> _linesChanged = LoggerMessage.Define<int>(
             LogLevel.Information,
             new EventId(1, "LinesChanged"),
             "Changed {Lines} lines in the database");
@@ -42,7 +42,7 @@ namespace DownloadData.Services
             }
             await historicalDataRepository.GetHistoricalDataAsync(tickers, datesReadonlyCollection, historicalDataArgs.HistoricalType, historicalDataArgs.MaxParallelism, cancellationToken).ConfigureAwait(false);
             var lines = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            _linesChanged(logger, lines.ToString(CultureInfo.InvariantCulture), arg3: null);
+            _linesChanged(logger, lines, arg3: null);
         }
     }
 }

@@ -102,14 +102,15 @@ async def execute_for_year(year: int, pool: asyncpg.Pool, downloader: DownloadET
     
 async def main():
     logger.info("Starting")
+    pool = asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost')
+    client = aiohttp.ClientSession()
+    group = asyncio.TaskGroup()
     with ProcessPoolExecutor(max_workers=8) as executor:
         loop = asyncio.get_event_loop()
-        async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool:
-            async with aiohttp.ClientSession() as client:
-                downloader = DownloadETTJ(url_base, client)
-                async with asyncio.TaskGroup() as group:
-                    for year in range(2003, dt.datetime.now().year+1):
-                        group.create_task(execute_for_year(year, pool, downloader, loop, executor))
+        async with pool, client, group:
+            downloader = DownloadETTJ(url_base, client)
+            for year in range(2003, dt.datetime.now().year+1):
+                group.create_task(execute_for_year(year, pool, downloader, loop, executor))
 
 if __name__ == "__main__":
     asyncio.run(main())

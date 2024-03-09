@@ -1,6 +1,0 @@
-{
-    "python.analysis.typeCheckingMode": "strict",
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    },
-}
