@@ -1,8 +1,6 @@
 import asyncpg
 import datetime as dt
-from asyncpg import Record
 import pandas as pd
-import numpy as np
 from itertools import permutations
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
@@ -15,7 +13,8 @@ class Returns(NamedTuple):
     volume: float
 
 initial_query = """
-SELECT "Date",
+WITH "HistData" AS (
+    SELECT "Date",
     "TickerId",
     EXP(LN(
         CASE
@@ -43,6 +42,12 @@ SELECT "Date",
     LN("Volume") AS "Volume"
 FROM "HistoricalDataYahoo"
 WHERE "Date" > $1
+)
+SELECT "HistData"."Date", "HistData"."TickerId", "CompanyIndustries"."IndustryId", "HistData"."Return", "HistData"."Volume"
+FROM "HistData"
+INNER JOIN "Tickers" ON "Tickers"."Id" = "HistData"."TickerId"
+INNER JOIN "Companies" ON "Companies"."Id" = "Tickers"."CompanyId"
+INNER JOIN "CompanyIndustries" ON "CompanyIndustries"."CompanyId" = "Companies"."Id"
 """
 
 removal_query = """
@@ -83,53 +88,87 @@ AND "CompanyIndustries"."IndustryId" <> ALL($2::int[])
 def get_industries(connection: asyncpg.Connection):
     return connection.fetch('SELECT * FROM "Industries"')
 
-async def get_returns(connection: asyncpg.Connection, start_date:dt.date, remove_industry: list[str]):
-    if remove_industry:
-        val = await connection.fetch(removal_query, start_date, remove_industry)
-        return [Returns(*i) for i in val]
+async def get_all_returns(connection: asyncpg.Connection, start_date:dt.date):
     val = await connection.fetch(initial_query, start_date)
-    return [Returns(*i) for i in val]
-
-def calculate_index(values: list[Returns]):
-    df = pd.DataFrame(values, columns=['Date', 'TickerId', 'Return', 'Volume'])
+    df = pd.DataFrame(val, columns=['Date', 'TickerId', 'IndustryId', 'Return', 'Volume'])
     df['Date'] = pd.to_datetime(df['Date'])
-    df = df.set_index('Date')
-    return df.groupby('Date').agg({'Return': 'mean'}), df.groupby('Date').apply(lambda x: np.average(x['Return'], weights=x['Volume'])).to_frame('Return')
+    return df
 
-async def execute_for_industry(connection: asyncpg.Connection, industries: tuple[int], loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor):
-    values = await get_returns(connection, dt.date(2020, 1, 1), industries)
-    mean, volume = await loop.run_in_executor(executor, calculate_index, values)
-    return mean["Return"].std(), volume["Return"].std()
+def get_returns(base_returns: pd.DataFrame, remove_industry: set[int]):
+    if remove_industry:
+        return base_returns[~base_returns['IndustryId'].isin(remove_industry)]
+    return base_returns
 
-async def execute_for_permutation(pool: asyncpg.Pool, industries: tuple[int], loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor):
-    async with pool.acquire() as connection:
-        start = dt.datetime.now()
-        val = await execute_for_industry(connection, industries, loop, executor)
-        print(f"Results for {industries} achieved in {dt.datetime.now() - start}")
+def average_return(values: pd.DataFrame) -> float:
+    return (values['Return'] * values['Volume']).sum()
 
-async def execute(pool: asyncpg.Pool, industries: permutations, loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor):
+def calculate_index(values: pd.DataFrame) -> tuple[float, float]:
+    grouped = values.groupby('Date')
+    # Calculate the mean return for each date directly
+    mean_return = grouped['Return'].mean().std()
+    # Calculate the weighted average return for each date
+    # Ensure this operation is vectorized
+    sum_weights = grouped['Volume'].sum()
+    weighted_sum = grouped.apply(average_return, include_groups=False)
+    weighted_avg_return = (weighted_sum / sum_weights).std()
+    return mean_return, weighted_avg_return
+
+async def execute_for_industry(base_returns: pd.DataFrame, industries: tuple[int], loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor):
+    values = get_returns(base_returns, industries)
+    if values.shape[0] == base_returns.shape[0]:
+        return 0, 0
+    values = values.drop_duplicates(subset=['Date', 'TickerId'])
+    values = values.drop(columns=['IndustryId', 'TickerId'])
+    return await loop.run_in_executor(executor, calculate_index, values)
+
+def execute_for_industry_sync(base_returns: pd.DataFrame, industries: tuple[int]):
+    values = get_returns(base_returns, industries)
+    if values.shape[0] == base_returns.shape[0]:
+        return 0, 0
+    values = values.drop_duplicates(subset=['Date', 'TickerId'])
+    values = values.drop(columns=['IndustryId', 'TickerId'])
+    return calculate_index(values)
+
+async def execute(base_returns: pd.DataFrame, industries: permutations, loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor):
     tasks: list[asyncio.Task[tuple[float, float]]] = []
     async with asyncio.TaskGroup() as group:
         for industry in industries:
-            task = group.create_task(execute_for_permutation(pool, industry, loop, executor))
+            task = group.create_task(execute_for_industry(base_returns, set(industry), loop, executor))
             tasks.append(task)
-            if len(tasks) == 10:
+            if len(tasks) == 100:
                 return await asyncio.gather(*tasks)
     return await asyncio.gather(*tasks)
 
-async def main():
-    async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool:
-        async with pool.acquire() as connection:
-            industries = [i["Id"] for i in await get_industries(connection)]
-        executor = ProcessPoolExecutor(max_workers=4)
-        with executor:
-            loop = asyncio.get_event_loop()
-            for i in range(2, len(industries)):
-                permut = permutations(industries, i)
-                results = await execute(pool, permut, loop, executor)
-                print(f"Results for {i} industries")
-                print(results)
+def execute_sync(base_returns: pd.DataFrame, industries: permutations):
+    results = []
+    for industry in industries:
+        results.append(execute_for_industry_sync(base_returns, set(industry)))
+        if len(results) == 100:
+            return results
+    return results
+
+async def main(executor: ProcessPoolExecutor):
+    async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool, pool.acquire() as connection:
+        industries: set[int] = {i["Id"] for i in await get_industries(connection)}
+        base_returns = await get_all_returns(connection, dt.date(2020, 1, 1))
+        loop = asyncio.get_event_loop()
+        for i in range(2, len(industries)):
+            permut = permutations(industries, i)
+            results = await execute(base_returns, permut, loop, executor)
+            print(f"Results for {i} industries")
+            print(results)
+
+async def main_sync():
+    async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool, pool.acquire() as connection:
+        industries: set[int] = {i["Id"] for i in await get_industries(connection)}
+        base_returns = await get_all_returns(connection, dt.date(2020, 1, 1))
+        for i in range(2, len(industries)):
+            permut = permutations(industries, i)
+            results = execute_sync(base_returns, permut)
+            print(f"Results for {i} industries")
+            print(results)
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    with ProcessPoolExecutor() as executor:
+        asyncio.run(main(executor))
