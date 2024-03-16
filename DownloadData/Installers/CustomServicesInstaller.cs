@@ -22,10 +22,12 @@ namespace DownloadData.Installers
                     .AddScoped<CompanyDataService>()
                     .AddScoped<HistoricalDataRepository>()
                     .AddScoped<HistoricalDataService>()
-                    .AddSingleton(_ =>
+                    .AddSingleton(provider =>
                     {
                         YahooQuotesBuilder builder = new();
-                        builder.WithHistoryStartDate(Instant.FromUtc(2020, 1, 1, 0, 0));
+                        var context = provider.GetRequiredService<StockContext>();
+                        var maxDate = context.HistoricalDataYahoos.Max(x => x.Date);
+                        builder.WithHistoryStartDate(Instant.FromUtc(maxDate.Year, maxDate.Month, maxDate.Day, 0, 0));
                         return builder.Build();
                     })
                     .AddScoped<YahooService>();

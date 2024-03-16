@@ -2,11 +2,11 @@ import asyncpg
 import datetime as dt
 from itertools import permutations
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
 from typing import NamedTuple
 from logging import getLogger, basicConfig, INFO
 import numpy as np
 import polars as pl
+from matplotlib import pyplot as plt
 
 logger = getLogger(__name__)
 basicConfig(level=INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -62,107 +62,99 @@ aggregate_expression = [
     pl.col('WeightedReturn').sum().alias('weighted_sum')
 ]
 
+weight_expression = (pl.col('Return') * pl.col('Volume')).alias('WeightedReturn')
+filter_expression = pl.col('weighted_sum') > 0
+weighted_avg_return_expression = (pl.col('weighted_sum') / pl.col('sum_volume')).alias('WeightedAvgReturn')
+std_expressions = [
+    pl.col('mean_return').std().alias('Return_std'),
+    pl.col('WeightedAvgReturn').std().alias('WeightedAvgReturn_std')
+]
+
 def get_sectors(connection: asyncpg.Connection):
     return connection.fetch('SELECT * FROM "Sector"')
 
 def get_all_returns(start_date:dt.date):
     connection_string = "postgresql://postgres:postgres@localhost/stock"
-    return pl.read_database_uri(initial_query.replace("$1", f"'{start_date.strftime('%Y-%m-%d')}'"), connection_string, engine="adbc")
-
-def get_returns(base_returns: pl.DataFrame, remove_sector: set[int]):
-    return base_returns.filter(~pl.col('SectorId').is_in(remove_sector))
+    data_frame = pl.read_database_uri(initial_query.replace("$1", f"'{start_date.strftime('%Y-%m-%d')}'"), connection_string, engine="adbc")
+    return data_frame, *calculate_index(data_frame.unique(subset=['Date', 'TickerId']).drop('SectorId', 'TickerId'))
 
 def calculate_index(values: pl.DataFrame) -> tuple[float, float]:
-    values = values.with_columns((pl.col('Return') * pl.col('Volume')).alias('WeightedReturn'))
-    # Group by 'Date' and aggregate
-    aggregated = values.group_by('Date').agg(aggregate_expression)
-    aggregated = aggregated.with_columns((pl.col('weighted_sum') / pl.col('sum_volume')).alias('WeightedAvgReturn'))
-    mean_return_std = aggregated.select(pl.col('mean_return').std()).get_column('mean_return').to_numpy()[0]
-    weighted_avg_return_std = aggregated.select(pl.col('WeightedAvgReturn').std()).get_column('WeightedAvgReturn').to_numpy()[0]
+    values = values.with_columns(weight_expression)
+    aggregated = values.group_by('Date').agg(aggregate_expression).filter(filter_expression)
+    aggregated = aggregated.with_columns(weighted_avg_return_expression)
+    stds = aggregated.select(std_expressions)
+    mean_return_std = stds.get_column('Return_std').to_numpy()[0]
+    weighted_avg_return_std = stds.get_column('WeightedAvgReturn_std').to_numpy()[0]
     return mean_return_std, weighted_avg_return_std
 
-async def execute_for_sector(base_returns: pl.DataFrame, industries: tuple[int], loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor):
-    values = get_returns(base_returns, industries)
-    if values.shape[0] == base_returns.shape[0]:
-        std_mean = values.groupby('Date').agg(pl.col('Return').std()).get_column('Return_std').to_numpy()[0]
-        return std_mean, std_mean
-    values = values.unique(subset=['Date', 'TickerId'])
-    values = values.drop('SectorId', 'TickerId')
-    return await loop.run_in_executor(executor, calculate_index, values)
-
-def execute_for_sector_sync(base_returns: pl.DataFrame, industries: tuple[int]):
-    values = get_returns(base_returns, industries)
-    if values.shape[0] == base_returns.shape[0]:
-        std_mean = values.groupby('Date').agg(pl.col('Return').std()).get_column('Return_std').to_numpy()[0]
-        return std_mean, std_mean
+def execute_for_sector(base_returns: pl.DataFrame, industries: set[int]):
+    values = base_returns.filter(~pl.col('SectorId').is_in(industries))
     values = values.unique(subset=['Date', 'TickerId'])
     values = values.drop('SectorId', 'TickerId')
     return calculate_index(values)
 
-async def execute(base_returns: pl.DataFrame, sectors: permutations, n_permutations: int, loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor, group: asyncio.TaskGroup):
-    tasks: list[asyncio.Task[tuple[float, float]]] = []
+def execute(base_returns: pl.DataFrame, sectors: permutations, n_permutations: int):
+    results: list[tuple[float, float]] = []
     for sector in sectors:
         if np.random.random() > 0.7:
             continue
-        task = group.create_task(execute_for_sector(base_returns, set(sector), loop, executor))
-        tasks.append(task)
-        if len(tasks) >= 250:
+        result = execute_for_sector(base_returns, set(sector))
+        results.append(result)
+        if len(results) >= 800:
             break
-    logger.info(f"Created {len(tasks)} tasks for {n_permutations} sectors permutation")
-    return await asyncio.gather(*tasks)
-
-def execute_sync(base_returns: pl.DataFrame, sectors: permutations):
-    results = []
-    for sector in sectors:
-        results.append(execute_for_sector_sync(base_returns, set(sector)))
+    logger.info("Created %d tasks for %d sectors permutation", len(results), n_permutations)
     return results
 
-async def execute_permutation(base_returns: pl.DataFrame, sectors: set[int], n_sectors: int, loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor, group: asyncio.TaskGroup):
+def calculate_jackknife_result(base_mean_std: float, base_log_std: float, results: list[tuple[float, float]]) -> tuple[tuple[float, float], tuple[float, float]]:
+    n = len(results)
+    mean_jackknife = np.mean([i[0] for i in results])
+    log_jackknife = np.mean([i[1] for i in results])
+    bias_mean = (n - 1) * (mean_jackknife - base_mean_std)
+    bias_log = (n - 1) * (log_jackknife - base_log_std)
+    se_mean = np.sqrt((n - 1) / n * np.sum([(i[0] - mean_jackknife) ** 2 for i in results]))
+    se_log = np.sqrt((n - 1) / n * np.sum([(i[1] - log_jackknife) ** 2 for i in results]))
+    return (bias_mean, se_mean), (bias_log, se_log)
+
+def execute_permutation(base_returns: pl.DataFrame, sectors: set[int], n_sectors: int,
+                        base_mean_std: float, base_log_std: float):
     permutation = permutations(sectors, n_sectors)
     start = dt.datetime.now()
-    result = await execute(base_returns, permutation, n_sectors, loop, executor, group)
+    result = execute(base_returns, permutation, n_sectors)
     end = dt.datetime.now()
-    logger.info(f"Results for {n_sectors} sectors. Time taken: {end - start}. Length: {len(result)}")
-    return result
+    logger.info("Results for %d sectors. Time taken: %s. Length: %d", n_sectors, end - start, len(result))
+    return calculate_jackknife_result(base_mean_std, base_log_std, result)
 
-async def main(executor: ProcessPoolExecutor):
+async def main():
     async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool, pool.acquire() as connection:
         sectors: set[int] = {i["Id"] for i in await get_sectors(connection)}
-        logger.info("Retrieved sectors")
-        base_returns = get_all_returns(dt.date(2020, 1, 1))
-        logger.info("Retrieved base returns")
-        loop = asyncio.get_event_loop()
-        tasks: list[asyncio.Task[list[tuple[float, float]]]] = []
+        logger.info("Retrieved %d sectors", len(sectors))
+        base_returns, base_mean_std, base_log_std = get_all_returns(dt.date(2014, 1, 1))
+        logger.info("Retrieved base returns with %d rows", base_returns.shape[0])
+        results: list[tuple[tuple[float, float], tuple[float, float]]] = []
         start = dt.datetime.now()
-        async with asyncio.TaskGroup() as group:
-            for i in range(1, len(sectors) - 1):
-                task = group.create_task(execute_permutation(base_returns, sectors, i, loop, executor, group))
-                tasks.append(task)
-            logger.info(f"Created {len(tasks)} tasks")
-        end = dt.datetime.now()
-        logger.info(f"Time taken: {end - start}")
-        return await asyncio.gather(*tasks)
-
-async def main_sync():
-    async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool, pool.acquire() as connection:
-        industries: set[int] = {i["Id"] for i in await get_sectors(connection)}
-        logger.info("Retrieved sectors")
-        base_returns = get_all_returns(dt.date(2020, 1, 1))
-        logger.info("Retrieved base returns")
-        results = []
-        start = dt.datetime.now()
-        for i in range(2, len(industries) -1 ):
-            permut = permutations(industries, i)
-            start_execution = dt.datetime.now()
-            result = execute_sync(base_returns, permut)
-            end_execution = dt.datetime.now()
-            logger.info(f"Results for {i} sectors. Time taken: {end_execution - start_execution}")
+        for i in range(1, len(sectors)):
+            result = execute_permutation(base_returns, sectors, i, base_mean_std, base_log_std)
             results.append(result)
+        logger.info("Created %d tasks", len(results))
         end = dt.datetime.now()
-        logger.info(f"Time taken: {end - start}")
+        logger.info("Time taken: %s", end - start)
+        bias_mean = [i[0][0] for i in results]
+        se_mean = [i[0][1] for i in results]
+        bias_log = [i[1][0] for i in results]
+        se_log = [i[1][1] for i in results]
+        fig = plt.figure()
+        # Create two subplots to be shown one below the other
+        ax1 = fig.add_subplot(211)
+        ax2 = fig.add_subplot(212)
+        ax1.plot(bias_mean, label="Bias Mean")
+        ax1.plot(bias_log, label="Bias Log")
+        ax1.legend()
+        ax2.plot(se_mean, label="SE Mean")
+        ax2.plot(se_log, label="SE Log")
+        ax2.legend()
+        plt.show()
         return results
 
 if __name__ == "__main__":
     import asyncio
-    with ProcessPoolExecutor() as executor:
-        asyncio.run(main(executor))
+    asyncio.run(main())
