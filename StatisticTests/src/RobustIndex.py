@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 import asyncpg
 import datetime as dt
 from itertools import permutations
@@ -76,10 +77,10 @@ def get_sectors(connection: asyncpg.Connection):
 def get_all_returns(start_date:dt.date):
     connection_string = "postgresql://postgres:postgres@localhost/stock"
     data_frame = pl.read_database_uri(initial_query.replace("$1", f"'{start_date.strftime('%Y-%m-%d')}'"), connection_string, engine="adbc")
+    data_frame = data_frame.with_columns(weight_expression)
     return data_frame, *calculate_index(data_frame.unique(subset=['Date', 'TickerId']).drop('SectorId', 'TickerId'))
 
 def calculate_index(values: pl.DataFrame) -> tuple[float, float]:
-    values = values.with_columns(weight_expression)
     aggregated = values.group_by('Date').agg(aggregate_expression).filter(filter_expression)
     aggregated = aggregated.with_columns(weighted_avg_return_expression)
     stds = aggregated.select(std_expressions)
@@ -115,26 +116,29 @@ def calculate_jackknife_result(base_mean_std: float, base_log_std: float, result
     se_log = np.sqrt((n - 1) / n * np.sum([(i[1] - log_jackknife) ** 2 for i in results]))
     return (bias_mean, se_mean), (bias_log, se_log)
 
-def execute_permutation(base_returns: pl.DataFrame, sectors: set[int], n_sectors: int,
-                        base_mean_std: float, base_log_std: float):
+async def execute_permutation(base_returns: pl.DataFrame, sectors: set[int], n_sectors: int,
+                        base_mean_std: float, base_log_std: float, loop: asyncio.AbstractEventLoop,
+                        executor: ProcessPoolExecutor):
     permutation = permutations(sectors, n_sectors)
     start = dt.datetime.now()
-    result = execute(base_returns, permutation, n_sectors)
+    result = await loop.run_in_executor(executor, execute, base_returns, permutation, n_sectors)
     end = dt.datetime.now()
     logger.info("Results for %d sectors. Time taken: %s. Length: %d", n_sectors, end - start, len(result))
     return calculate_jackknife_result(base_mean_std, base_log_std, result)
 
-async def main():
+async def main(executor: ProcessPoolExecutor, loop: asyncio.AbstractEventLoop):
     async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool, pool.acquire() as connection:
         sectors: set[int] = {i["Id"] for i in await get_sectors(connection)}
         logger.info("Retrieved %d sectors", len(sectors))
         base_returns, base_mean_std, base_log_std = get_all_returns(dt.date(2014, 1, 1))
         logger.info("Retrieved base returns with %d rows", base_returns.shape[0])
-        results: list[tuple[tuple[float, float], tuple[float, float]]] = []
         start = dt.datetime.now()
-        for i in range(1, len(sectors)):
-            result = execute_permutation(base_returns, sectors, i, base_mean_std, base_log_std)
-            results.append(result)
+        tasks: list[asyncio.Task[tuple[tuple[float, float], tuple[float, float]]]] = []
+        async with asyncio.TaskGroup() as group:
+            for i in range(1, len(sectors)):
+                task = group.create_task(execute_permutation(base_returns, sectors, i, base_mean_std, base_log_std, loop, executor))
+                tasks.append(task)
+        results = await asyncio.gather(*tasks)
         logger.info("Created %d tasks", len(results))
         end = dt.datetime.now()
         logger.info("Time taken: %s", end - start)
@@ -157,4 +161,10 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    executor = ProcessPoolExecutor(2)
+    loop = asyncio.new_event_loop()
+    try:
+        with executor:
+            loop.run_until_complete(main(executor, loop))
+    finally:
+        loop.close()
