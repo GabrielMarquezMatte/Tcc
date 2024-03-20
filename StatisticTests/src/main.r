@@ -1,4 +1,4 @@
-source("./src/libs/garch_models.r")
+source("./libs/garch_models.r", chdir = TRUE)
 data <- rnorm(1000)
-garch <- FitBestGarch(data)
-print(garch)
+garch <- FindBestArchModel(data)
+rugarch::plot(garch$fit_bic)

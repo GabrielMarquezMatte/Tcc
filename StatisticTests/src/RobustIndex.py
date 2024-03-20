@@ -19,42 +19,26 @@ class Returns(NamedTuple):
     volume: float
 
 initial_query = """
-WITH "HistData" AS (
-    SELECT "Date",
-    "TickerId",
-    EXP(LN(
-        CASE
-            WHEN "Adjusted" < 0 THEN "Close"
-            ELSE "Adjusted"
-        END
-    ) - LAG(
-        LN(
-            CASE
-                WHEN "Adjusted" < 0 THEN "Close"
-                ELSE "Adjusted"
-            END
-        ),
-        1,
-        LN(
-            CASE
-                WHEN "Adjusted" < 0 THEN "Close"
-                ELSE "Adjusted"
-            END
-        )
-    ) OVER(
-        PARTITION BY "TickerId"
-        ORDER BY "Date"
-    ))-1 AS "Return",
-    LN("Volume") AS "Volume"
-FROM "HistoricalDataYahoo"
-WHERE "Date" > $1
-)
-SELECT "HistData"."Date", "HistData"."TickerId", "Industries"."SectorId", "HistData"."Return", "HistData"."Volume"
+WITH "HistData" AS
+    (SELECT "Date",
+            "TickerId",
+            EXP(LN("Adjusted") - LAG(LN("Adjusted"), 1, LN("Adjusted")) OVER(PARTITION BY "TickerId"
+                                                                             ORDER BY "Date"))-1 AS "Return",
+            LN("Volume" * "Adjusted") AS "Volume"
+     FROM "HistoricalDataYahoo"
+     WHERE "Date" > $1
+     AND "Adjusted" > 0)
+SELECT "HistData"."Date",
+       "HistData"."TickerId",
+       "Industries"."SectorId",
+       "HistData"."Return",
+       "HistData"."Volume"
 FROM "HistData"
 INNER JOIN "Tickers" ON "Tickers"."Id" = "HistData"."TickerId"
 INNER JOIN "Companies" ON "Companies"."Id" = "Tickers"."CompanyId"
 INNER JOIN "CompanyIndustries" ON "CompanyIndustries"."CompanyId" = "Companies"."Id"
 INNER JOIN "Industries" ON "Industries"."Id" = "CompanyIndustries"."IndustryId"
+WHERE ABS("HistData"."Return") < 0.5
 """
 
 aggregate_expression = [
