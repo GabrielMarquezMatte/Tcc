@@ -90,7 +90,7 @@ def execute(base_returns: pl.DataFrame, sectors: permutations, n_permutations: i
     logger.info("Created %d tasks for %d sectors permutation", len(results), n_permutations)
     return results
 
-def calculate_jackknife_result(base_mean_std: float, base_log_std: float, results: list[tuple[float, float]]) -> tuple[tuple[float, float], tuple[float, float]]:
+def calculate_jackknife_result(base_mean_std: float, base_log_std: float, results: list[tuple[float, float]]):
     n = len(results)
     mean_jackknife = np.mean([i[0] for i in results])
     log_jackknife = np.mean([i[1] for i in results])
@@ -117,7 +117,7 @@ async def main(executor: ProcessPoolExecutor, loop: asyncio.AbstractEventLoop):
         base_returns, base_mean_std, base_log_std = get_all_returns(dt.date(2014, 1, 1))
         logger.info("Retrieved base returns with %d rows", base_returns.shape[0])
         start = dt.datetime.now()
-        tasks: list[asyncio.Task[tuple[tuple[float, float], tuple[float, float]]]] = []
+        tasks: list[asyncio.Task] = []
         async with asyncio.TaskGroup() as group:
             for i in range(1, len(sectors)):
                 task = group.create_task(execute_permutation(base_returns, sectors, i, base_mean_std, base_log_std, loop, executor))
