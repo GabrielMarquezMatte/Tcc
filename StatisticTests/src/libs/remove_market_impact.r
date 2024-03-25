@@ -17,23 +17,14 @@ GROUP BY "HistData"."Date"
 '
 
 ALL_SECTORS_QUERY = '
-WITH "HistData" AS
-    (SELECT "Date",
-            "TickerId",
-            EXP(LN("Adjusted") - LAG(LN("Adjusted"), 1, LN("Adjusted")) OVER(PARTITION BY "TickerId"
-                                                                             ORDER BY "Date"))-1 AS "Return",
-            LN("Volume" * "Adjusted") AS "Volume"
-     FROM "HistoricalDataYahoo"
-     WHERE "Date" > $1
-     AND "Adjusted" > 0)
-SELECT "HistData"."Date", "Industries"."SectorId", SUM("HistData"."Return" * "HistData"."Volume")/SUM("HistData"."Volume") AS "Return"
-FROM "HistData"
-INNER JOIN "Tickers" ON "HistData"."TickerId" = "Tickers"."Id"
+SELECT "HistoricalDataYahoo"."Date", "Industries"."SectorId", "HistoricalDataYahoo"."Adjusted", LN("HistoricalDataYahoo"."Volume") AS "Volume"
+FROM "HistoricalDataYahoo"
+INNER JOIN "Tickers" ON "HistoricalDataYahoo"."TickerId" = "Tickers"."Id"
 INNER JOIN "Companies" ON "Companies"."Id" = "Tickers"."CompanyId"
 INNER JOIN "CompanyIndustries" ON "CompanyIndustries"."CompanyId" = "Companies"."Id"
 INNER JOIN "Industries" ON "Industries"."Id" = "CompanyIndustries"."IndustryId"
-WHERE ABS("HistData"."Return") < 0.5
-GROUP BY "HistData"."Date", "Industries"."SectorId"
+WHERE "Date" > $1
+AND "Adjusted" > 0
 '
 
 CreateConnection <- function() {
