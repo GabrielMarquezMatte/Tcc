@@ -3,20 +3,14 @@ import asyncpg
 import datetime as dt
 from itertools import permutations
 import asyncio
-from typing import NamedTuple
 from logging import getLogger, basicConfig, INFO
 import numpy as np
 import polars as pl
 from matplotlib import pyplot as plt
+from numba import njit
 
 logger = getLogger(__name__)
 basicConfig(level=INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-class Returns(NamedTuple):
-    date: dt.date
-    ticker_id: int
-    return_: float
-    volume: float
 
 initial_query = """
 WITH "HistData" AS
@@ -79,25 +73,28 @@ def execute_for_sector(base_returns: pl.DataFrame, industries: set[int]):
     return calculate_index(values)
 
 def execute(base_returns: pl.DataFrame, sectors: permutations, n_permutations: int):
-    results: list[tuple[float, float]] = []
+    mean_results: list[float] = []
+    log_results: list[float] = []
     for sector in sectors:
         if np.random.random() > 0.7:
             continue
-        result = execute_for_sector(base_returns, set(sector))
-        results.append(result)
-        if len(results) >= 800:
+        mean_result, log_result = execute_for_sector(base_returns, set(sector))
+        mean_results.append(mean_result)
+        log_results.append(log_result)
+        if len(mean_results) == 800:
             break
-    logger.info("Created %d tasks for %d sectors permutation", len(results), n_permutations)
-    return results
+    logger.info("Created %d tasks for %d sectors permutation", len(mean_results), n_permutations)
+    return np.array(mean_results), np.array(log_results)
 
-def calculate_jackknife_result(base_mean_std: float, base_log_std: float, results: list[tuple[float, float]]):
-    n = len(results)
-    mean_jackknife = np.mean([i[0] for i in results])
-    log_jackknife = np.mean([i[1] for i in results])
+@njit
+def calculate_jackknife_result(base_mean_std: float, base_log_std: float, mean_results: np.ndarray, log_results: np.ndarray):
+    n = mean_results.shape[0]
+    mean_jackknife = np.mean(mean_results)
+    log_jackknife = np.mean(log_results)
     bias_mean = (n - 1) * (mean_jackknife - base_mean_std)
     bias_log = (n - 1) * (log_jackknife - base_log_std)
-    se_mean = np.sqrt((n - 1) / n * np.sum([(i[0] - mean_jackknife) ** 2 for i in results]))
-    se_log = np.sqrt((n - 1) / n * np.sum([(i[1] - log_jackknife) ** 2 for i in results]))
+    se_mean = np.sqrt((n-1)/n * np.sum((mean_results - mean_jackknife) ** 2))
+    se_log = np.sqrt((n-1)/n * np.sum((log_results - log_jackknife) ** 2))
     return (bias_mean, se_mean), (bias_log, se_log)
 
 async def execute_permutation(base_returns: pl.DataFrame, sectors: set[int], n_sectors: int,
@@ -105,10 +102,10 @@ async def execute_permutation(base_returns: pl.DataFrame, sectors: set[int], n_s
                         executor: ProcessPoolExecutor):
     permutation = permutations(sectors, n_sectors)
     start = dt.datetime.now()
-    result = await loop.run_in_executor(executor, execute, base_returns, permutation, n_sectors)
+    mean_results, log_results = await loop.run_in_executor(executor, execute, base_returns, permutation, n_sectors)
     end = dt.datetime.now()
-    logger.info("Results for %d sectors. Time taken: %s. Length: %d", n_sectors, end - start, len(result))
-    return calculate_jackknife_result(base_mean_std, base_log_std, result)
+    logger.info("Results for %d sectors. Time taken: %s. Length: %d", n_sectors, end - start, len(mean_results))
+    return calculate_jackknife_result(base_mean_std, base_log_std, mean_results, log_results)
 
 async def main(executor: ProcessPoolExecutor, loop: asyncio.AbstractEventLoop):
     async with asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost') as pool, pool.acquire() as connection:
