@@ -86,16 +86,18 @@ CalculateVolatilityForSector <- function(all_values, market_result) {
     return(only_returns)
 }
 
-main <- function() {
-    start_date <- as.Date("2017-01-01")
-    connection <- CreateConnection()
+RemoveMarketImpact <- coro::generator(function(connection) {
+    start_date <- as.Date("2010-01-01")
     market_values <- GetMarketValues(connection, start_date)
     sectors <- GetSectors(connection)
+    index <- 0
     for(sector in sectors$Id) {
         all_values <- GetSectorValues(connection, start_date, sector)
-        only_returns <- CalculateVolatilityForSector(all_values, market_values)
+        coro::yield(CalculateVolatilityForSector(all_values, market_values))
     }
-    odbc::dbDisconnect(connection)
-}
+})
 
-main()
+connection <- CreateConnection()
+iter <- RemoveMarketImpact(connection)
+?coro::async
+odbc::dbDisconnect(connection)
