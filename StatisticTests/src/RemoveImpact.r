@@ -25,6 +25,13 @@ AND "Adjusted" > 0
 AND "SectorId" = $2
 '
 
+RATES_QUERY <- '
+SELECT "Date", "Rate"
+FROM "NelsonSiegel"
+WHERE "Date" > $1
+ORDER BY "Date"
+'
+
 VOLATILITY_MODELS <- c("eGARCH", "iGARCH", "gjrGARCH")
 DISTRIBUTIONS <- c("std", "sstd")
 
@@ -50,12 +57,29 @@ GetMarketValues <- function(conn, date) {
     return(result)
 }
 
-GetSectorValues <- function(conn, date, sector) {
-    return(odbc::dbGetQuery(conn, ALL_SECTORS_QUERY, params = list(date, sector)))
+GetSectorValues <- function(date, sector) {
+    conn <- CreateConnection()
+    val <- NULL
+    try(val <- odbc::dbGetQuery(conn, ALL_SECTORS_QUERY, params = list(date, sector)), silent = TRUE)
+    odbc::dbDisconnect(conn)
+    if(is.null(val)) {
+      stop("Error querying data")
+    }
+    return(val)
 }
 
 GetSectors <- function(conn) {
-    return(odbc::dbGetQuery(conn, 'SELECT * FROM "Sector" WHERE "Id" > 4'))
+    return(odbc::dbGetQuery(conn, 'SELECT * FROM "Sector"'))
+}
+
+GetRates <- function(conn, date) {
+    return(odbc::dbGetQuery(conn, RATES_QUERY, params = list(date)))
+}
+
+GetPtax <- function(date) {
+    `%>%` <- magrittr::`%>%`
+    return(GetBCBData::gbcbd_get_series(1, first.date = date, do.parallel = FALSE, use.memoise = FALSE) %>%
+      dplyr::select(Date = ref.date, Ptax = value))
 }
 
 CalculateVolatilityForSector <- function(all_values, market_result) {
@@ -63,7 +87,8 @@ CalculateVolatilityForSector <- function(all_values, market_result) {
     sector_df <- all_values %>%
         dplyr::filter(abs(Return) < 0.5) %>%
         dplyr::group_by(Date) %>%
-        dplyr::summarize(SectorReturn = log(1 + sum(Return * Volume) / sum(Volume)))
+        dplyr::summarize(SectorReturn = log(1 + sum(Return * Volume) / sum(Volume))) %>%
+        dplyr::filter(!is.na(SectorReturn))
     joined <- dplyr::inner_join(sector_df, market_result$data, by = "Date")
     garch_model <- FindBestArchModel(joined$SectorReturn, type_models = VOLATILITY_MODELS, dist_to_use = DISTRIBUTIONS)
     multispec <- rugarch::multispec(c(garch_model$ugspec_b, market_result$garch_spec))
@@ -77,27 +102,63 @@ CalculateVolatilityForSector <- function(all_values, market_result) {
     covariance <- rmgarch::rcov(dcc_model$fit_bic)
     betas <- covariance[1, 2, ] / covariance[2, 2, ]
     adjusted_volatility <- sqrt(sector_volatility^2 - (betas * market_volatility)^2)
-    only_returns <- joined %>%
+    return(joined %>%
       dplyr::select(Date, SectorReturn, MarketReturn) %>%
       dplyr::mutate(SectorVolatility = adjusted_volatility,
+                    SectorVariance = adjusted_volatility^2,
                     NonAdjusted = sector_volatility,
                     MarketVolatility = joined$MarketVolatility,
-                    MarketImpact = sqrt(betas^2*market_volatility^2))
-    return(only_returns)
+                    MarketImpact = sqrt(betas^2*market_volatility^2)))
 }
 
-RemoveMarketImpact <- coro::generator(function(connection) {
-    start_date <- as.Date("2010-01-01")
+TestRatesForStationarity <- function(rates_data) {
+    adf_test <- tseries::adf.test(rates_data$Rate)
+    kpss_test <- tseries::kpss.test(rates_data$Rate)
+    return(list(adf_test = adf_test, kpss_test = kpss_test))
+}
+
+ExecuteVARForSector <- function(sector_volatility, rates_data, ptax) {
+    `%>%` <- magrittr::`%>%`
+    joined <- dplyr::inner_join(sector_volatility, rates_data, by = "Date") %>%
+      dplyr::inner_join(ptax, by = "Date") %>% dplyr::select(SectorVariance, Rate, Ptax)
+    var_length <- vars::VARselect(joined, lag.max = 3, type = "const")$selection[1]
+    print(var_length)
+    return(vars::VAR(joined, p = var_length, type = "const"))
+}
+
+ExecuteForSector <- function(start_date, sector_id, rates, ptax, market_values) {
+  all_values <- GetSectorValues(start_date, sector_id)
+  sector_volatility <- CalculateVolatilityForSector(all_values, market_values)
+  var_model <- ExecuteVARForSector(sector_volatility, rates, ptax)
+  message(paste("Modelo calculado para o setor", sector_id))
+  return(list(sector = sector_id, var_model = var_model))
+}
+
+RemoveMarketImpact <- function(connection) {
+    start_date <- as.Date("2020-01-01")
+    rates <- GetRates(connection, start_date)
+    test_results <- TestRatesForStationarity(rates)
+    if(test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
+        stop("Rates are not stationary")
+    }
     market_values <- GetMarketValues(connection, start_date)
     sectors <- GetSectors(connection)
-    index <- 0
+    ptax <- GetPtax(start_date)
+    lista <- list()
+    index <- 1
     for(sector in sectors$Id) {
-        all_values <- GetSectorValues(connection, start_date, sector)
-        coro::yield(CalculateVolatilityForSector(all_values, market_values))
+        lista[[index]] <- future::future({ExecuteForSector(start_date, sector, rates, ptax, market_values)})
+        index <- index + 1
     }
-})
+    return(lista)
+}
+
+future::plan(future::multisession, workers = 3)
 
 connection <- CreateConnection()
-iter <- RemoveMarketImpact(connection)
-?coro::async
+futures <- RemoveMarketImpact(connection)
+for(future_value in futures) {
+    value <- future::value(future_value)
+    print(summary(value$var_model))
+}
 odbc::dbDisconnect(connection)
