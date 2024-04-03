@@ -10,6 +10,7 @@ import io
 from concurrent.futures import ProcessPoolExecutor
 from logging import getLogger, basicConfig, INFO
 from typing import NamedTuple
+from numba import njit
 
 url_base = "https://cdn.tesouro.gov.br/sistemas-internos/apex/producao/sistemas/sistd/{year}/{title}_{year}.xls"
 logger = getLogger(__name__)
@@ -43,7 +44,8 @@ class DownloadETTJ:
         df = df.dropna(axis=0, how="all")
         df["Vencimento"] = maturity
         df["Dia"] = pd.to_datetime(df["Dia"], format="%d/%m/%Y")
-        return df[['Dia', 'Vencimento', 'Taxa Compra Manhã']]
+        df["AnosVencimento"] = (df["Vencimento"] - df["Dia"]).dt.days/365.25
+        return df[['Dia', 'Vencimento', 'Taxa Compra Manhã', 'AnosVencimento']]
     
     async def get_bonds(self, title: str, year: int) -> pd.DataFrame:
         data = await self.download(title, year)
@@ -56,8 +58,10 @@ class DownloadETTJ:
 
 class Optimizer:
     @staticmethod
+    @njit
     def nelson_siegel(t: float, beta0: float, beta1: float, beta2: float, tau0: float) -> float:
-        return beta0 + beta1*((1-np.exp(-t*tau0))/(t*tau0)) + beta2*(((1-np.exp(-t*tau0))/(t*tau0))-np.exp(-t*tau0))
+        time_part = (1-np.exp(-t*tau0))/(t*tau0)
+        return beta0 + beta1*time_part + beta2*(time_part-np.exp(-t*tau0))
     
     @staticmethod
     def _curve_fit(func, x, y, p0):
@@ -65,8 +69,8 @@ class Optimizer:
     
     @staticmethod
     async def fit(data:pd.DataFrame, loop: asyncio.AbstractEventLoop, executor: ProcessPoolExecutor) -> OptimizeResult:
-        x = (data["Vencimento"] - data["Dia"]).dt.days/365.25
-        y = data["Taxa Compra Manhã"]
+        x = data["AnosVencimento"].to_numpy()
+        y = data["Taxa Compra Manhã"].to_numpy()
         try:
             popt, _ = await loop.run_in_executor(executor, Optimizer._curve_fit, Optimizer.nelson_siegel, x, y, (0.1, 0.01, -0.05, 1))
             return data["Dia"].iloc[0].date(), *popt, Optimizer.nelson_siegel(1, *popt)
@@ -87,7 +91,7 @@ async def execute_for_year(year: int, pool: asyncpg.Pool, downloader: DownloadET
     bonds = pd.concat([await ltn_task, await ntnf_task])
     if bonds.empty:
         logger.info(f"No data for year {year}")
-        return
+        return []
     fit_tasks: list[asyncio.Task[OptimizeResult]] = []
     parameters: list[OptimizeResult] = []
     async with asyncio.TaskGroup() as group:
@@ -98,7 +102,7 @@ async def execute_for_year(year: int, pool: asyncpg.Pool, downloader: DownloadET
         parameters.append(await fit_task)
     await save(pool, parameters)
     logger.info(f"Year {year} done")
-    return
+    return parameters
     
 async def main():
     logger.info("Starting")
