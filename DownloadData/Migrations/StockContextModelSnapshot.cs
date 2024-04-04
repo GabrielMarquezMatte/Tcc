@@ -217,12 +217,12 @@ namespace DownloadData.Migrations
                         new
                         {
                             Id = 1,
-                            Name = "Varejo"
+                            Name = "Agronegócio"
                         },
                         new
                         {
                             Id = 2,
-                            Name = "Alimentos"
+                            Name = "Bens Industriais"
                         },
                         new
                         {
@@ -232,47 +232,62 @@ namespace DownloadData.Migrations
                         new
                         {
                             Id = 4,
-                            Name = "Indústria"
+                            Name = "Consumo cíclico"
                         },
                         new
                         {
                             Id = 5,
-                            Name = "Energia"
+                            Name = "Consumo não-cíclico"
                         },
                         new
                         {
                             Id = 6,
-                            Name = "Financeiro"
+                            Name = "Energia Elétrica"
                         },
                         new
                         {
                             Id = 7,
-                            Name = "Telecomunicações"
+                            Name = "Financeiro"
                         },
                         new
                         {
                             Id = 8,
-                            Name = "Saúde"
+                            Name = "Imobiliário"
                         },
                         new
                         {
                             Id = 9,
-                            Name = "Transporte"
+                            Name = "Industrial"
                         },
                         new
                         {
                             Id = 10,
-                            Name = "Utilidade Pública"
+                            Name = "Materiais básicos"
                         },
                         new
                         {
                             Id = 11,
-                            Name = "Imobiliário"
+                            Name = "Saúde"
                         },
                         new
                         {
                             Id = 12,
                             Name = "Outros"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Name = "Telecomunicações"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Name = "Transporte"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Name = "Utilidade Pública"
                         });
                 });
 

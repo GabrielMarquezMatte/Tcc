@@ -7,18 +7,21 @@ namespace DownloadData.Data.Mapping
     public sealed class SectorMapping : IEntityTypeConfiguration<Sector>
     {
         private static readonly Sector[] Sectors = [
-            new (){ Id = 1, Name = "Varejo" },
-            new (){ Id = 2, Name = "Alimentos" },
+            new (){ Id = 1, Name = "Agronegócio" },
+            new (){ Id = 2, Name = "Bens Industriais" },
             new (){ Id = 3, Name = "Commodities" },
-            new (){ Id = 4, Name = "Indústria" },
-            new (){ Id = 5, Name = "Energia" },
-            new (){ Id = 6, Name = "Financeiro" },
-            new (){ Id = 7, Name = "Telecomunicações" },
-            new (){ Id = 8, Name = "Saúde" },
-            new (){ Id = 9, Name = "Transporte" },
-            new (){ Id = 10, Name = "Utilidade Pública" },
-            new (){ Id = 11, Name = "Imobiliário" },
+            new (){ Id = 4, Name = "Consumo cíclico" },
+            new (){ Id = 5, Name = "Consumo não-cíclico" },
+            new (){ Id = 6, Name = "Energia Elétrica" },
+            new (){ Id = 7, Name = "Financeiro" },
+            new (){ Id = 8, Name = "Imobiliário" },
+            new (){ Id = 9, Name = "Industrial" },
+            new (){ Id = 10, Name = "Materiais básicos" },
+            new (){ Id = 11, Name = "Saúde" },
             new (){ Id = 12, Name = "Outros" },
+            new (){ Id = 13, Name = "Telecomunicações" },
+            new (){ Id = 14, Name = "Transporte" },
+            new (){ Id = 15, Name = "Utilidade Pública" },
         ];
         public void Configure(EntityTypeBuilder<Sector> builder)
         {

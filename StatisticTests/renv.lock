@@ -20,17 +20,6 @@
       ],
       "Hash": "3f197e069f3e581d6ef41ce317944a97"
     },
-    "DBI": {
-      "Package": "DBI",
-      "Version": "1.2.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "methods"
-      ],
-      "Hash": "164809cd72e1d5160b4cb3aa57f510fe"
-    },
     "DistributionUtils": {
       "Package": "DistributionUtils",
       "Version": "0.6-1",
@@ -116,25 +105,6 @@
       ],
       "Hash": "470851b6d5d0ac559e9d01bb352b4021"
     },
-    "RPostgres": {
-      "Package": "RPostgres",
-      "Version": "1.4.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "DBI",
-        "R",
-        "bit64",
-        "blob",
-        "cpp11",
-        "hms",
-        "lubridate",
-        "methods",
-        "plogr",
-        "withr"
-      ],
-      "Hash": "a3ccabc3de4657c14185c91f3e6d4b60"
-    },
     "Rcpp": {
       "Package": "Rcpp",
       "Version": "1.0.12",
@@ -212,32 +182,6 @@
       ],
       "Hash": "d242abec29412ce988848d0294b208fd"
     },
-    "bit64": {
-      "Package": "bit64",
-      "Version": "4.0.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "bit",
-        "methods",
-        "stats",
-        "utils"
-      ],
-      "Hash": "9fe98599ca456d6552421db0d6772d8f"
-    },
-    "blob": {
-      "Package": "blob",
-      "Version": "1.2.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "methods",
-        "rlang",
-        "vctrs"
-      ],
-      "Hash": "40415719b5a479b87949f3aa0aee737c"
-    },
     "brio": {
       "Package": "brio",
       "Version": "1.1.4",
@@ -283,17 +227,6 @@
         "utils"
       ],
       "Hash": "89e6d8219950eac806ae0c489052048a"
-    },
-    "coro": {
-      "Package": "coro",
-      "Version": "1.0.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "rlang"
-      ],
-      "Hash": "4b224d10f3b10ce791c6a4afd50abce3"
     },
     "corpcor": {
       "Package": "corpcor",
@@ -469,20 +402,6 @@
       ],
       "Hash": "eef7063b82c79405f4eb2de9a051a312"
     },
-    "hms": {
-      "Package": "hms",
-      "Version": "1.1.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "lifecycle",
-        "methods",
-        "pkgconfig",
-        "rlang",
-        "vctrs"
-      ],
-      "Hash": "b59377caa7ed00fa41808342002138f9"
-    },
     "jsonlite": {
       "Package": "jsonlite",
       "Version": "1.8.8",
@@ -553,19 +472,6 @@
         "rlang"
       ],
       "Hash": "001cecbeac1cff9301bdc3775ee46a86"
-    },
-    "lubridate": {
-      "Package": "lubridate",
-      "Version": "1.9.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "generics",
-        "methods",
-        "timechange"
-      ],
-      "Hash": "680ad542fbcf801442c83a6ac5a2126c"
     },
     "magrittr": {
       "Package": "magrittr",
@@ -664,24 +570,6 @@
       ],
       "Hash": "df58958f293b166e4ab885ebcad90e02"
     },
-    "odbc": {
-      "Package": "odbc",
-      "Version": "1.4.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "DBI",
-        "R",
-        "Rcpp",
-        "bit64",
-        "blob",
-        "hms",
-        "lifecycle",
-        "methods",
-        "rlang"
-      ],
-      "Hash": "8bf8a0865b7b1658a35afe85c126f2e7"
-    },
     "pcaPP": {
       "Package": "pcaPP",
       "Version": "2.0-4",
@@ -756,13 +644,6 @@
         "withr"
       ],
       "Hash": "876c618df5ae610be84356d5d7a5d124"
-    },
-    "plogr": {
-      "Package": "plogr",
-      "Version": "0.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "09eb987710984fc2905c7129c7d85e65"
     },
     "pracma": {
       "Package": "pracma",
@@ -1065,17 +946,6 @@
         "withr"
       ],
       "Hash": "79540e5fcd9e0435af547d885f184fd5"
-    },
-    "timechange": {
-      "Package": "timechange",
-      "Version": "0.3.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "cpp11"
-      ],
-      "Hash": "c5f3c201b931cd6474d17d8700ccb1c8"
     },
     "truncnorm": {
       "Package": "truncnorm",

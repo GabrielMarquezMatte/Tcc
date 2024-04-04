@@ -16,7 +16,7 @@ async def main():
     pool = asyncpg.create_pool(user='postgres', password='postgres', database='stock', host='localhost')
     group = asyncio.TaskGroup()
     async with pool, group:
-        industries = pd.read_excel("Setores.xlsx")
+        industries = pd.read_excel("Sectors.xlsx")
         for industry_id, _, sector_id in industries.values:
             group.create_task(update_industry(pool, industry_id, sector_id))
 

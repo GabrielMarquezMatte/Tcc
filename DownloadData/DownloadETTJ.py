@@ -75,7 +75,7 @@ class Optimizer:
             popt, _ = await loop.run_in_executor(executor, Optimizer._curve_fit, Optimizer.nelson_siegel, x, y, (0.1, 0.01, -0.05, 1))
             return data["Dia"].iloc[0].date(), *popt, Optimizer.nelson_siegel(1, *popt)
         except Exception as e:
-            logger.error(f"Error fitting {data['Dia'].iloc[0].date()} - {data} - {e}")
+            logger.error("Error fitting %s - %s - %s", data['Dia'].iloc[0].date(), data, e)
             raise e
 
 async def save(pool: asyncpg.Pool, parameters: list[OptimizeResult]):
@@ -90,7 +90,7 @@ async def execute_for_year(year: int, pool: asyncpg.Pool, downloader: DownloadET
         ntnf_task = group.create_task(downloader.get_bonds("NTN-F", year))
     bonds = pd.concat([await ltn_task, await ntnf_task])
     if bonds.empty:
-        logger.info(f"No data for year {year}")
+        logger.info("No data for year %d", year)
         return []
     fit_tasks: list[asyncio.Task[OptimizeResult]] = []
     parameters: list[OptimizeResult] = []
@@ -111,10 +111,13 @@ async def main():
     group = asyncio.TaskGroup()
     with ProcessPoolExecutor(max_workers=8) as executor:
         loop = asyncio.get_event_loop()
+        start = dt.datetime.now()
         async with pool, client, group:
             downloader = DownloadETTJ(url_base, client)
             for year in range(2003, dt.datetime.now().year+1):
                 group.create_task(execute_for_year(year, pool, downloader, loop, executor))
+        end = dt.datetime.now()
+        logger.info("Elapsed time: %s", end-start)    
 
 if __name__ == "__main__":
     asyncio.run(main())
