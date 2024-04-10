@@ -18,43 +18,27 @@ namespace DownloadData.Readers
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static DateOnly ParseDate(char* span)
+        private unsafe static DateOnly ParseDate(ReadOnlySpan<char> span)
         {
             return new((span[0] - '0') * 1000 + (span[1] - '0') * 100 + (span[2] - '0') * 10 + (span[3] - '0'), (span[4] - '0') * 10 + (span[5] - '0'), (span[6] - '0') * 10 + (span[7] - '0'));
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static DateOnly ParseDate(ReadOnlySpan<char> span)
+        private static double ParseDouble(ReadOnlySpan<char> span)
         {
-            fixed(char* ptr = span)
-            {
-                return ParseDate(ptr);
-            }
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe double ParseDoubleUnsafe(char* ptr)
-        {
-            var result = (ptr[0] - '0') * 1_000_000_000_000L +
-                        (ptr[1] - '0') * 100_000_000_000L +
-                        (ptr[2] - '0') * 10_000_000_000L +
-                        (ptr[3] - '0') * 1_000_000_000L +
-                        (ptr[4] - '0') * 100_000_000L +
-                        (ptr[5] - '0') * 10_000_000L +
-                        (ptr[6] - '0') * 1_000_000L +
-                        (ptr[7] - '0') * 100_000L +
-                        (ptr[8] - '0') * 10_000L +
-                        (ptr[9] - '0') * 1_000L +
-                        (ptr[10] - '0') * 100L +
-                        (ptr[11] - '0') * 10L +
-                        (ptr[12] - '0');
+            var result = (span[0] - '0') * 1_000_000_000_000L +
+                        (span[1] - '0') * 100_000_000_000L +
+                        (span[2] - '0') * 10_000_000_000L +
+                        (span[3] - '0') * 1_000_000_000L +
+                        (span[4] - '0') * 100_000_000L +
+                        (span[5] - '0') * 10_000_000L +
+                        (span[6] - '0') * 1_000_000L +
+                        (span[7] - '0') * 100_000L +
+                        (span[8] - '0') * 10_000L +
+                        (span[9] - '0') * 1_000L +
+                        (span[10] - '0') * 100L +
+                        (span[11] - '0') * 10L +
+                        (span[12] - '0');
             return result * 0.01;
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static double ParseDouble(ReadOnlySpan<char> span)
-        {
-            fixed(char* ptr = span)
-            {
-                return ParseDoubleUnsafe(ptr);
-            }
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static HistoricalDataResponse ParseLine(ReadOnlySpan<char> ticker, ReadOnlySpan<char> span)
