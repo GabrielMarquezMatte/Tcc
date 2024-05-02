@@ -140,13 +140,13 @@ ExecuteForSector <- function(start_date, sector_id, rates, ptax, market_values) 
     sector_volatility <- CalculateVolatilityForSector(all_values, market_values)
     var_model <- ExecuteVARForSector(sector_volatility$data, rates, ptax)
     message(paste("Modelo calculado para o setor", sector_id))
-    value <- list(sector = sector_id, var_model = var_model, data = sector_volatility, market_values = market_values)
+    value <- list(sector = sector_id, var_model = var_model, data = sector_volatility, market_values = market_values, rates = rates, ptax = ptax)
     saveRDS(value, file = paste0("models/sector_", sector_id, ".rds"))
     return(value)
 }
 
 RemoveMarketImpact <- function(connection) {
-    start_date <- as.Date("2010-01-01")
+    start_date <- as.Date("2009-01-01")
     rates <- GetRates(connection, start_date)
     test_results <- TestRatesForStationarity(rates)
     if (test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
@@ -159,11 +159,48 @@ RemoveMarketImpact <- function(connection) {
     index <- 1
     for (sector in sectors$Id) {
         lista[[index]] <- future::future({
+          start <- Sys.time()
+          ran <- FALSE
+          try({
             ExecuteForSector(start_date, sector, rates, ptax, market_values)
+            ran <- TRUE
+          }, silent = T)
+          end <- Sys.time()
+          if(ran){
+            message(paste("Executed for sector", sector, "in", end-start))
+          } else {
+            message(paste("Error for sector", sector))
+          }
         })
         index <- index + 1
     }
     return(lista)
+}
+
+RemoveMarketImpactSync <- function(connection) {
+    start_date <- as.Date("2008-01-01")
+    rates <- GetRates(connection, start_date)
+    test_results <- TestRatesForStationarity(rates)
+    if (test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
+        stop("Rates are not stationary")
+    }
+    ptax <- GetPtax(start_date)
+    market_values <- GetMarketValues(connection, start_date)
+    sectors <- GetSectors(connection)
+    for (sector in sectors$Id) {
+      start <- Sys.time()
+      ran <- FALSE
+      try({
+        ExecuteForSector(start_date, sector, rates, ptax, market_values)
+        ran <- TRUE
+      }, silent = T)
+      end <- Sys.time()
+      if(ran){
+        message(paste("Executed for sector", sector, "in", end-start))
+      } else {
+        message(paste("Error for sector", sector))
+      }
+    }
 }
 
 future::plan(future::multisession, workers = 3)
@@ -171,6 +208,7 @@ if (!dir.exists("models")) {
     dir.create("models")
 }
 connection <- CreateConnection()
+#RemoveMarketImpactSync(connection)
 futures <- RemoveMarketImpact(connection)
 for (future_value in futures) {
     value <- future::value(future_value)
