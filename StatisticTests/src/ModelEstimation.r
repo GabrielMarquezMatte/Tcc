@@ -33,7 +33,7 @@ ORDER BY "Date"
 '
 
 VOLATILITY_MODELS <- c("eGARCH", "iGARCH", "gjrGARCH")
-DISTRIBUTIONS <- c("std", "sstd")
+DISTRIBUTIONS <- c("std", "sstd", "ged", "snorm", "sged")
 
 DCC_MODEL <- c("DCC", "aDCC")
 DCC_DISTRIBUTION <- c("mvnorm", "mvt", "mvlaplace")
@@ -100,11 +100,12 @@ CalculateVolatilityForSector <- function(all_values, market_result) {
     dcc_model <- FindBestDccModel(only_returns,
         uspec = multispec,
         type_models = DCC_MODEL,
-        dist_to_use = DCC_DISTRIBUTION, fit = multifit
+        dist_to_use = DCC_DISTRIBUTION, fit = multifit,
     )
+    dcc_fit <- rmgarch::dccfit(dcc_model$dccspec_b, data = only_returns)
     sector_volatility <- garch_model$fit_bic@fit$sigma
     market_volatility <- joined$MarketVolatility
-    covariance <- rmgarch::rcov(dcc_model$fit_bic)
+    covariance <- rmgarch::rcov(dcc_fit)
     betas <- covariance[1, 2, ] / covariance[2, 2, ]
     adjusted_volatility <- sqrt(sector_volatility^2 - (betas * market_volatility)^2)
     final_df <- joined %>%
@@ -116,7 +117,7 @@ CalculateVolatilityForSector <- function(all_values, market_result) {
             MarketVolatility = joined$MarketVolatility,
             MarketImpact = sqrt(betas^2 * market_volatility^2)
         )
-    result <- list(data = final_df, garch_model = garch_model$fit_bic, dcc_model = dcc_model$fit_bic)
+    result <- list(data = final_df, garch_model = garch_model$fit_bic, dcc_model = dcc_fit)
     return(result)
 }
 
@@ -131,8 +132,7 @@ ExecuteVARForSector <- function(sector_volatility, rates_data, ptax) {
     joined <- dplyr::inner_join(sector_volatility, rates_data, by = "Date") %>%
         dplyr::inner_join(ptax, by = "Date") %>%
         dplyr::select(SectorVariance, Rate, Ptax)
-    var_length <- vars::VARselect(joined, lag.max = 3, type = "const")$selection[1]
-    return(vars::VAR(joined, p = var_length, type = "const"))
+    return(vars::VAR(joined, p = 3, type = "const"))
 }
 
 ExecuteForSector <- function(start_date, sector_id, rates, ptax, market_values) {
@@ -146,7 +146,7 @@ ExecuteForSector <- function(start_date, sector_id, rates, ptax, market_values) 
 }
 
 RemoveMarketImpact <- function(connection) {
-    start_date <- as.Date("2009-01-01")
+    start_date <- as.Date("2011-03-16")
     rates <- GetRates(connection, start_date)
     test_results <- TestRatesForStationarity(rates)
     if (test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
@@ -164,7 +164,7 @@ RemoveMarketImpact <- function(connection) {
           try({
             ExecuteForSector(start_date, sector, rates, ptax, market_values)
             ran <- TRUE
-          }, silent = T)
+          }, silent = F)
           end <- Sys.time()
           if(ran){
             message(paste("Executed for sector", sector, "in", end-start))
@@ -178,7 +178,7 @@ RemoveMarketImpact <- function(connection) {
 }
 
 RemoveMarketImpactSync <- function(connection) {
-    start_date <- as.Date("2008-01-01")
+    start_date <- as.Date("2011-03-16")
     rates <- GetRates(connection, start_date)
     test_results <- TestRatesForStationarity(rates)
     if (test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
@@ -193,7 +193,7 @@ RemoveMarketImpactSync <- function(connection) {
       try({
         ExecuteForSector(start_date, sector, rates, ptax, market_values)
         ran <- TRUE
-      }, silent = T)
+      }, silent = F)
       end <- Sys.time()
       if(ran){
         message(paste("Executed for sector", sector, "in", end-start))
@@ -208,7 +208,7 @@ if (!dir.exists("models")) {
     dir.create("models")
 }
 connection <- CreateConnection()
-#RemoveMarketImpactSync(connection)
+# RemoveMarketImpactSync(connection)
 futures <- RemoveMarketImpact(connection)
 for (future_value in futures) {
     value <- future::value(future_value)

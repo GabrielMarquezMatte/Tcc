@@ -2,6 +2,9 @@ library(ggplot2)
 library(dplyr)
 library(forcats)
 library(tidyr)
+library(vars)
+library(broom)
+library(knitr)
 
 CreateConnection <- function() {
   return(odbc::dbConnect(RPostgres::Postgres(),
@@ -14,18 +17,38 @@ GetSectors <- function(conn) {
   return(odbc::dbGetQuery(conn, 'SELECT * FROM "Sector"'))
 }
 
+ExportVARModelTable <- function(model, sectors) {
+  sector_name <- sectors %>% filter(Id == model$sector) %>% .$Name
+  sink(paste("models/Tables/sector_", sector_name, ".txt", sep = ""))
+  print(summary(model$var_model))
+  sink()
+}
+
+ExportVARImpact <- function(model, sectors) {
+  sector_name <- sectors %>% filter(Id == model$sector) %>% .$Name
+  impulse <- vars::irf(model$var_model, impulse = "Rate", response = c("SectorVariance"),
+                       n.ahead = 10,ortho = T, cumulative = F, boot = T)
+  impulse$Upper$Rate <- impulse$Upper$Rate * 252
+  impulse$Lower$Rate <- impulse$Lower$Rate * 252
+  impulse$irf$Rate <- impulse$irf$Rate * 252
+  df <- data.frame(Days = 1:11, Lower = impulse$Lower$Rate, IRF = impulse$irf$Rate, Upper = impulse$Upper$Rate)
+  colnames(df) <- c("Days","Lower", "IRF", "Upper")
+  xlsx::write.xlsx(df,"models/Tables/impact.xlsx", sheetName = sector_name, row.names = F, append = T)
+}
+
 # Carregar dados
 conn <- CreateConnection()
-model <- readRDS("models/sector_11.rds")
+model <- readRDS("models/sector_10.rds")
 rates <- readRDS("models/rates.rds")
 sectors <- GetSectors(conn) %>% arrange(Id)
+impulse <- vars::irf(model$var_model, impulse = "Rate", response = c("SectorVariance"), n.ahead = 100,ortho = T, cumulative = F, boot = T)
 odbc::dbDisconnect(conn)
 
 # Preparar os dados
 data <- model$data$data %>%
   inner_join(rates, by = "Date") %>%
   mutate(MarketVolatility = MarketVolatility * sqrt(252)) %>%
-  select(Date, Juros = Rate, Volatilidade = MarketVolatility)
+  dplyr::select(Date, Juros = Rate, Volatilidade = MarketVolatility)
 
 # Criar o gráfico
 ggplot(data, aes(x = Date)) +
@@ -47,30 +70,36 @@ ggplot(data, aes(x = Date)) +
 ggsave("images/VolMercado.png", bg = "white", create.dir = T)
 
 all_models <- lapply(1:15, \(x) readRDS(paste0("models/sector_", x, ".rds")))
+
+# Exportar tabelas
+lapply(all_models, ExportVARModelTable, sectors)
+lapply(all_models, ExportVARImpact, sectors)
+
 uncvariances <- sapply(all_models, \(x) mean(x$data$data$NonAdjusted^2)*252)
-uncvariances_adjusted <- sapply(all_models, \(x) mean(x$data$data$SectorVariance, na.rm = T)*252)
+uncvariances_adjusted <- sapply(all_models, \(x) mean(x$data$data$SectorVariance, na.rm = F)*252)
 sectors$unconditional_variance <- uncvariances
 sectors$unconditional_variance_adjusted <- uncvariances_adjusted
 sectors %>%
-  select(Name, Variancia = unconditional_variance, VarianciaAjustada = unconditional_variance_adjusted) %>%
-  arrange(Variancia) %>%
-  pivot_longer(c(Variancia, VarianciaAjustada), names_to = "VarType") %>%
-  ggplot(aes(x = value, fill = fct_relevel(VarType, "VarianciaAjustada", "Variancia"), y = fct_inorder(Name))) +
+  dplyr::select(Name, Volatilidade = unconditional_variance, VolatilidadeAjustada = unconditional_variance_adjusted) %>%
+  arrange(Volatilidade) %>%
+  pivot_longer(c(Volatilidade, VolatilidadeAjustada), names_to = "VarType") %>%
+  mutate(value = sqrt(value)) %>%
+  ggplot(aes(x = value, fill = fct_relevel(VarType, "VolatilidadeAjustada", "Volatilidade"), y = fct_inorder(Name))) +
   geom_bar(stat = "identity", position = position_dodge()) +
   scale_x_continuous(
     labels = scales::percent,
     n.breaks = 10,
   )+
-  labs(x = "Variância Incondicional", y = "", title = "Variâncias por Setor",
-       subtitle = "Variância anualizada", fill = "") +
+  labs(x = "Volatilidade Incondicional", y = "", title = "Volatilidade por Setor",
+       subtitle = "Volatilidade anualizada", fill = "") +
   theme_minimal()+
   theme(text = element_text(size = 20))+
-  scale_fill_manual(values = c("Variancia" = "#ff7f00", "VarianciaAjustada" = "#377eb8"))
+  scale_fill_manual(values = c("Volatilidade" = "#ff7f00", "VolatilidadeAjustada" = "#377eb8"))
 
 ggsave("images/VarUnconditional.png", bg = "white")
 
 model$data$data %>%
-  filter(Date >= '2015-01-01' & Date <= '2020-01-01') %>%
+  filter(Date >= '2010-01-01' & Date <= '2020-01-01') %>%
   ggplot(aes(x = Date))+
   geom_line(aes(y = SectorVolatility*sqrt(252), col = "Volatilidade Ajustada"), linewidth = 0.8, lty = 1)+
   geom_line(aes(y = NonAdjusted*sqrt(252), col = "Volatilidade Nominal"), linewidth = 0.8, lty = 2)+

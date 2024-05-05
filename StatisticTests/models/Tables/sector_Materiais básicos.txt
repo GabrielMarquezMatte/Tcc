@@ -1,0 +1,99 @@
+
+VAR Estimation Results:
+========================= 
+Endogenous variables: SectorVariance, Rate, Ptax 
+Deterministic variables: const 
+Sample size: 3209 
+Log Likelihood: 63563.595 
+Roots of the characteristic polynomial:
+0.9994 0.9706 0.4118 0.3858 0.3858 0.3395 0.3395 0.3019 0.1521
+Call:
+vars::VAR(y = joined, p = 3, type = "const")
+
+
+Estimation results for equation SectorVariance: 
+=============================================== 
+SectorVariance = SectorVariance.l1 + Rate.l1 + Ptax.l1 + SectorVariance.l2 + Rate.l2 + Ptax.l2 + SectorVariance.l3 + Rate.l3 + Ptax.l3 + const 
+
+                    Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1  9.761e-01  1.750e-02  55.784  < 2e-16 ***
+Rate.l1            5.197e-04  6.891e-05   7.541 6.02e-14 ***
+Ptax.l1            5.871e-05  7.973e-06   7.364 2.26e-13 ***
+SectorVariance.l2  1.257e-01  2.439e-02   5.153 2.73e-07 ***
+Rate.l2           -5.337e-04  9.444e-05  -5.651 1.73e-08 ***
+Ptax.l2           -6.220e-07  8.031e-06  -0.077  0.93827    
+SectorVariance.l3 -1.270e-01  1.734e-02  -7.324 3.03e-13 ***
+Rate.l3            1.573e-05  6.990e-05   0.225  0.82191    
+Ptax.l3            2.936e-05  7.700e-06   3.813  0.00014 ***
+const              6.737e-07  2.333e-07   2.887  0.00391 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+Residual standard error: 3.922e-06 on 3199 degrees of freedom
+Multiple R-Squared: 0.9605,	Adjusted R-squared: 0.9604 
+F-statistic:  8649 on 9 and 3199 DF,  p-value: < 2.2e-16 
+
+
+Estimation results for equation Rate: 
+===================================== 
+Rate = SectorVariance.l1 + Rate.l1 + Ptax.l1 + SectorVariance.l2 + Rate.l2 + Ptax.l2 + SectorVariance.l3 + Rate.l3 + Ptax.l3 + const 
+
+                    Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1 -1.338e+01  4.659e+00  -2.871 0.004114 ** 
+Rate.l1            9.018e-01  1.835e-02  49.149  < 2e-16 ***
+Ptax.l1            8.228e-03  2.123e-03   3.876 0.000109 ***
+SectorVariance.l2  2.324e+01  6.495e+00   3.578 0.000352 ***
+Rate.l2            1.519e-01  2.515e-02   6.041  1.7e-09 ***
+Ptax.l2           -7.625e-03  2.138e-03  -3.566 0.000368 ***
+SectorVariance.l3 -1.192e+01  4.616e+00  -2.582 0.009871 ** 
+Rate.l3           -5.417e-02  1.861e-02  -2.911 0.003631 ** 
+Ptax.l3            7.602e-03  2.050e-03   3.708 0.000213 ***
+const              1.033e-04  6.212e-05   1.662 0.096526 .  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+Residual standard error: 0.001044 on 3199 degrees of freedom
+Multiple R-Squared: 0.999,	Adjusted R-squared: 0.999 
+F-statistic: 3.709e+05 on 9 and 3199 DF,  p-value: < 2.2e-16 
+
+
+Estimation results for equation Ptax: 
+===================================== 
+Ptax = SectorVariance.l1 + Rate.l1 + Ptax.l1 + SectorVariance.l2 + Rate.l2 + Ptax.l2 + SectorVariance.l3 + Rate.l3 + Ptax.l3 + const 
+
+                    Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1 -1.474e+00  4.044e+01  -0.036   0.9709    
+Rate.l1           -1.140e+00  1.592e-01  -7.160 9.97e-13 ***
+Ptax.l1            9.915e-02  1.843e-02   5.381 7.94e-08 ***
+SectorVariance.l2  8.290e+01  5.637e+01   1.471   0.1415    
+Rate.l2            1.232e+00  2.182e-01   5.644 1.80e-08 ***
+Ptax.l2           -1.823e-02  1.856e-02  -0.982   0.3261    
+SectorVariance.l3 -7.402e+01  4.006e+01  -1.848   0.0648 .  
+Rate.l3           -9.665e-02  1.615e-01  -0.598   0.5497    
+Ptax.l3           -1.821e-02  1.780e-02  -1.023   0.3062    
+const              5.542e-04  5.392e-04   1.028   0.3041    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+Residual standard error: 0.009063 on 3199 degrees of freedom
+Multiple R-Squared: 0.02203,	Adjusted R-squared: 0.01928 
+F-statistic: 8.008 on 9 and 3199 DF,  p-value: 8.258e-12 
+
+
+
+Covariance matrix of residuals:
+               SectorVariance      Rate      Ptax
+SectorVariance      1.538e-11 1.588e-10 1.529e-09
+Rate                1.588e-10 1.090e-06 2.674e-06
+Ptax                1.529e-09 2.674e-06 8.213e-05
+
+Correlation matrix of residuals:
+               SectorVariance    Rate    Ptax
+SectorVariance        1.00000 0.03878 0.04301
+Rate                  0.03878 1.00000 0.28258
+Ptax                  0.04301 0.28258 1.00000
+
+
