@@ -1,99 +1,99 @@
 
 VAR Estimation Results:
 ========================= 
-Endogenous variables: SectorVariance, Rate, Ptax 
+Endogenous variables: SectorVariance, Rate, RealExchangeRate 
 Deterministic variables: const 
 Sample size: 3213 
-Log Likelihood: 63322.224 
+Log Likelihood: 63262.544 
 Roots of the characteristic polynomial:
-0.9994 0.9694 0.3608 0.3608 0.2889 0.286 0.286 0.2817 0.2269
+0.9994 0.9693 0.3547 0.3547 0.3014 0.2874 0.2662 0.2662  0.23
 Call:
 vars::VAR(y = joined, p = 3, type = "const")
 
 
 Estimation results for equation SectorVariance: 
 =============================================== 
-SectorVariance = SectorVariance.l1 + Rate.l1 + Ptax.l1 + SectorVariance.l2 + Rate.l2 + Ptax.l2 + SectorVariance.l3 + Rate.l3 + Ptax.l3 + const 
+SectorVariance = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + const 
 
-                    Estimate Std. Error t value Pr(>|t|)    
-SectorVariance.l1  9.662e-01  1.747e-02  55.291  < 2e-16 ***
-Rate.l1            8.702e-05  7.640e-05   1.139 0.254769    
-Ptax.l1            5.197e-06  8.817e-06   0.589 0.555579    
-SectorVariance.l2  1.411e-01  2.432e-02   5.800 7.26e-09 ***
-Rate.l2           -3.662e-04  1.044e-04  -3.507 0.000460 ***
-Ptax.l2            2.891e-05  8.815e-06   3.279 0.001052 ** 
-SectorVariance.l3 -1.343e-01  1.747e-02  -7.690 1.95e-14 ***
-Rate.l3            2.761e-04  7.690e-05   3.591 0.000334 ***
-Ptax.l3            3.220e-05  8.411e-06   3.829 0.000131 ***
-const              9.317e-07  2.723e-07   3.421 0.000631 ***
+                      Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1    9.664e-01  1.748e-02  55.299  < 2e-16 ***
+Rate.l1              9.020e-05  7.631e-05   1.182 0.237267    
+RealExchangeRate.l1  3.965e-06  8.659e-06   0.458 0.647014    
+SectorVariance.l2    1.412e-01  2.433e-02   5.805 7.04e-09 ***
+Rate.l2             -3.682e-04  1.042e-04  -3.535 0.000414 ***
+RealExchangeRate.l2  2.792e-05  8.660e-06   3.224 0.001277 ** 
+SectorVariance.l3   -1.345e-01  1.747e-02  -7.698 1.83e-14 ***
+Rate.l3              2.751e-04  7.676e-05   3.583 0.000344 ***
+RealExchangeRate.l3  3.185e-05  8.275e-06   3.849 0.000121 ***
+const                9.299e-07  2.723e-07   3.414 0.000647 ***
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
 Residual standard error: 4.34e-06 on 3203 degrees of freedom
 Multiple R-Squared: 0.9571,	Adjusted R-squared: 0.957 
-F-statistic:  7942 on 9 and 3203 DF,  p-value: < 2.2e-16 
+F-statistic:  7941 on 9 and 3203 DF,  p-value: < 2.2e-16 
 
 
 Estimation results for equation Rate: 
 ===================================== 
-Rate = SectorVariance.l1 + Rate.l1 + Ptax.l1 + SectorVariance.l2 + Rate.l2 + Ptax.l2 + SectorVariance.l3 + Rate.l3 + Ptax.l3 + const 
+Rate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + const 
 
-                    Estimate Std. Error t value Pr(>|t|)    
-SectorVariance.l1 -6.793e+00  4.199e+00  -1.618 0.105774    
-Rate.l1            8.987e-01  1.836e-02  48.958  < 2e-16 ***
-Ptax.l1            7.874e-03  2.118e-03   3.717 0.000205 ***
-SectorVariance.l2  1.600e+01  5.843e+00   2.738 0.006214 ** 
-Rate.l2            1.455e-01  2.509e-02   5.797 7.39e-09 ***
-Ptax.l2           -8.025e-03  2.118e-03  -3.789 0.000154 ***
-SectorVariance.l3 -1.240e+01  4.197e+00  -2.954 0.003161 ** 
-Rate.l3           -4.517e-02  1.848e-02  -2.445 0.014558 *  
-Ptax.l3            8.241e-03  2.021e-03   4.078 4.65e-05 ***
-const              1.647e-04  6.543e-05   2.517 0.011891 *  
+                      Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1   -6.720e+00  4.199e+00  -1.600 0.109617    
+Rate.l1              8.989e-01  1.834e-02  49.028  < 2e-16 ***
+RealExchangeRate.l1  7.734e-03  2.081e-03   3.717 0.000205 ***
+SectorVariance.l2    1.583e+01  5.845e+00   2.709 0.006784 ** 
+Rate.l2              1.445e-01  2.503e-02   5.771 8.63e-09 ***
+RealExchangeRate.l2 -7.855e-03  2.081e-03  -3.775 0.000163 ***
+SectorVariance.l3   -1.229e+01  4.199e+00  -2.926 0.003453 ** 
+Rate.l3             -4.441e-02  1.844e-02  -2.408 0.016097 *  
+RealExchangeRate.l3  7.898e-03  1.988e-03   3.972 7.27e-05 ***
+const                1.644e-04  6.544e-05   2.512 0.012065 *  
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
 Residual standard error: 0.001043 on 3203 degrees of freedom
 Multiple R-Squared: 0.999,	Adjusted R-squared: 0.999 
-F-statistic: 3.719e+05 on 9 and 3203 DF,  p-value: < 2.2e-16 
+F-statistic: 3.718e+05 on 9 and 3203 DF,  p-value: < 2.2e-16 
 
 
-Estimation results for equation Ptax: 
-===================================== 
-Ptax = SectorVariance.l1 + Rate.l1 + Ptax.l1 + SectorVariance.l2 + Rate.l2 + Ptax.l2 + SectorVariance.l3 + Rate.l3 + Ptax.l3 + const 
+Estimation results for equation RealExchangeRate: 
+================================================= 
+RealExchangeRate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + const 
 
-                    Estimate Std. Error t value Pr(>|t|)    
-SectorVariance.l1  3.440e+01  3.650e+01   0.943    0.346    
-Rate.l1           -1.171e+00  1.596e-01  -7.338 2.74e-13 ***
-Ptax.l1            9.947e-02  1.841e-02   5.402 7.06e-08 ***
-SectorVariance.l2 -3.477e+01  5.079e+01  -0.685    0.494    
-Rate.l2            1.261e+00  2.181e-01   5.782 8.08e-09 ***
-Ptax.l2           -1.708e-02  1.841e-02  -0.928    0.354    
-SectorVariance.l3  1.423e+00  3.648e+01   0.039    0.969    
-Rate.l3           -9.473e-02  1.606e-01  -0.590    0.555    
-Ptax.l3           -1.357e-02  1.757e-02  -0.773    0.440    
-const              7.292e-04  5.687e-04   1.282    0.200    
+                      Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1    4.498e+01  3.711e+01   1.212    0.226    
+Rate.l1             -1.150e+00  1.621e-01  -7.098 1.56e-12 ***
+RealExchangeRate.l1  9.942e-02  1.839e-02   5.406 6.90e-08 ***
+SectorVariance.l2   -3.958e+01  5.166e+01  -0.766    0.444    
+Rate.l2              1.219e+00  2.212e-01   5.512 3.83e-08 ***
+RealExchangeRate.l2 -1.381e-02  1.839e-02  -0.751    0.453    
+SectorVariance.l3   -6.515e+00  3.711e+01  -0.176    0.861    
+Rate.l3             -7.486e-02  1.630e-01  -0.459    0.646    
+RealExchangeRate.l3 -1.052e-02  1.757e-02  -0.599    0.549    
+const                7.752e-04  5.784e-04   1.340    0.180    
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-Residual standard error: 0.009064 on 3203 degrees of freedom
-Multiple R-Squared: 0.0209,	Adjusted R-squared: 0.01815 
-F-statistic: 7.598 on 9 and 3203 DF,  p-value: 4.229e-11 
+Residual standard error: 0.009218 on 3203 degrees of freedom
+Multiple R-Squared: 0.02014,	Adjusted R-squared: 0.01739 
+F-statistic: 7.314 on 9 and 3203 DF,  p-value: 1.299e-10 
 
 
 
 Covariance matrix of residuals:
-               SectorVariance      Rate      Ptax
-SectorVariance      1.884e-11 2.400e-10 4.253e-10
-Rate                2.400e-10 1.087e-06 2.683e-06
-Ptax                4.253e-10 2.683e-06 8.216e-05
+                 SectorVariance      Rate RealExchangeRate
+SectorVariance        1.884e-11 2.408e-10        2.343e-10
+Rate                  2.408e-10 1.088e-06        2.680e-06
+RealExchangeRate      2.343e-10 2.680e-06        8.498e-05
 
 Correlation matrix of residuals:
-               SectorVariance    Rate    Ptax
-SectorVariance        1.00000 0.05304 0.01081
-Rate                  0.05304 1.00000 0.28386
-Ptax                  0.01081 0.28386 1.00000
+                 SectorVariance    Rate RealExchangeRate
+SectorVariance         1.000000 0.05319         0.005856
+Rate                   0.053189 1.00000         0.278787
+RealExchangeRate       0.005856 0.27879         1.000000
 
 

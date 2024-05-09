@@ -142,7 +142,7 @@ async def main(executor: ProcessPoolExecutor, loop: asyncio.AbstractEventLoop):
 
 if __name__ == "__main__":
     import asyncio
-    executor = ProcessPoolExecutor(2)
+    executor = ProcessPoolExecutor(6)
     loop = asyncio.new_event_loop()
     try:
         with executor:

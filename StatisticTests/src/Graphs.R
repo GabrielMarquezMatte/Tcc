@@ -6,6 +6,8 @@ library(vars)
 library(broom)
 library(knitr)
 
+Sys.setenv(JAVA_HOME='')
+
 CreateConnection <- function() {
   return(odbc::dbConnect(RPostgres::Postgres(),
                          dbname = "stock", host = "localhost",
@@ -41,7 +43,6 @@ conn <- CreateConnection()
 model <- readRDS("models/sector_10.rds")
 rates <- readRDS("models/rates.rds")
 sectors <- GetSectors(conn) %>% arrange(Id)
-impulse <- vars::irf(model$var_model, impulse = "Rate", response = c("SectorVariance"), n.ahead = 100,ortho = T, cumulative = F, boot = T)
 odbc::dbDisconnect(conn)
 
 # Preparar os dados
@@ -73,6 +74,10 @@ all_models <- lapply(1:15, \(x) readRDS(paste0("models/sector_", x, ".rds")))
 
 # Exportar tabelas
 lapply(all_models, ExportVARModelTable, sectors)
+# Remove xlsx
+if (file.exists("models/Tables/impact.xlsx")) {
+  file.remove("models/Tables/impact.xlsx")
+}
 lapply(all_models, ExportVARImpact, sectors)
 
 uncvariances <- sapply(all_models, \(x) mean(x$data$data$NonAdjusted^2)*252)
