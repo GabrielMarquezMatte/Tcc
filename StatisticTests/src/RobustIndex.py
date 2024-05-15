@@ -128,21 +128,21 @@ async def main(executor: ProcessPoolExecutor, loop: asyncio.AbstractEventLoop):
         bias_log = [i[1][0] for i in results]
         se_log = [i[1][1] for i in results]
         fig = plt.figure()
-        # Create two subplots to be shown one below the other
+        fig.suptitle("Teste Jackknife")
         ax1 = fig.add_subplot(211)
         ax2 = fig.add_subplot(212)
-        ax1.plot(bias_mean, label="Bias Mean")
-        ax1.plot(bias_log, label="Bias Log")
+        ax1.plot(bias_mean, label="Viés (Pesos Iguais)", color="#377eb8")
+        ax1.plot(bias_log, label="Viés (Pesos Log)", color="#ff7f00")
         ax1.legend()
-        ax2.plot(se_mean, label="SE Mean")
-        ax2.plot(se_log, label="SE Log")
+        ax2.plot(se_mean, label="Erro Padrão (Pesos Iguais)", color="#377eb8")
+        ax2.plot(se_log, label="Erro Padrão (Pesos Log)", color="#ff7f00")
         ax2.legend()
-        plt.show()
+        fig.savefig("images/jackknife.png")
         return results
 
 if __name__ == "__main__":
     import asyncio
-    executor = ProcessPoolExecutor(6)
+    executor = ProcessPoolExecutor(3)
     loop = asyncio.new_event_loop()
     try:
         with executor:

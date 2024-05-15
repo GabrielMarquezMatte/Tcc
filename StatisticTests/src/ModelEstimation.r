@@ -76,9 +76,38 @@ GetRates <- function(conn, date) {
     return(odbc::dbGetQuery(conn, RATES_QUERY, params = list(date)))
 }
 
+GetSingleRate <- function(URL, year) {
+    data <- read.csv(URL)
+    print(sprintf("Finished getting rates for %d", year))
+    return(data)
+}
+
+GetRatesUSAYear <- function(year) {
+    URL <- sprintf("https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/%d/all?type=daily_treasury_yield_curve&field_tdr_date_value=%d&page&_format=csv", year, year)
+    print(sprintf("Getting rates for %d", year))
+    return(future::future(GetSingleRate(URL, year)))
+}
+
+ExecutePromise <- function(promise) {
+    `%>%` <- magrittr::`%>%`
+    return(promise %>%
+        dplyr::mutate(Date = as.Date(Date, format = "%m/%d/%Y")) %>%
+        dplyr::select(Date, UsaRate = X1.Yr) %>%
+        dplyr::mutate(UsaRate = UsaRate / 100))
+}
+
+GetRatesUSA <- function(start) {
+    `%>%` <- magrittr::`%>%`
+    dates <- lubridate::year(seq(start, Sys.Date(), by = "year"))
+    list_promises <- lapply(dates, GetRatesUSAYear)
+    values <- lapply(list_promises, future::value)
+    promises <- lapply(values, ExecutePromise)
+    return(do.call(rbind, promises) %>% dplyr::filter(Date >= start) %>% dplyr::arrange(Date) %>% na.omit)
+}
+
 GetCPI <- function(start) {
     `%>%` <- magrittr::`%>%`
-    URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23e1e9f0&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1318&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=CPIAUCSL&scale=left&cosd=1947-01-01&coed=2024-03-01&line_color=%234572a7&link_values=false&line_style=solid&mark_type=none&mw=3&lw=2&ost=-99999&oet=99999&mma=0&fml=a&fq=Monthly&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2024-05-08&revision_date=2024-05-08&nd=1947-01-01"
+    URL <- "https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23e1e9f0&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1318&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=CPIAUCSL&scale=left&cosd=1947-01-01&coed=2024-03-01&line_color=%234572a7&link_values=false&line_style=solid&mark_type=none&mw=3&lw=2&ost=-99999&oet=99999&mma=0&fml=a&fq=Monthly&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2024-05-08&revision_date=2024-05-08&nd=1947-01-01"
     data <- read.csv(URL) %>%
         dplyr::mutate(Date = as.Date(DATE, format = "%Y-%m-%d")) %>%
         dplyr::filter(Date >= start) %>%
@@ -92,7 +121,7 @@ GetIpca <- function(start) {
     `%>%` <- magrittr::`%>%`
     data <- GetBCBData::gbcbd_get_series(433, first.date = start, do.parallel = FALSE, use.memoise = FALSE) %>%
         dplyr::select(Date = ref.date, IPCA = value) %>%
-        dplyr::mutate(IPCA = cumprod(1 + IPCA/100))
+        dplyr::mutate(IPCA = cumprod(1 + IPCA / 100))
     return(data)
 }
 
@@ -109,12 +138,14 @@ GetRealExchangeRate <- function(start) {
     ptax <- GetPtax(start)
     data <- dplyr::left_join(ptax, ipca, by = "Date") %>%
         dplyr::left_join(cpi, by = "Date") %>%
-        dplyr::mutate(IPCA = c(ifelse(is.na(IPCA[1]), 1, IPCA[1]), IPCA[-1]),
-                      CPI = c(ifelse(is.na(CPI[1]), 1, CPI[1]), CPI[-1])) %>%
+        dplyr::mutate(
+            IPCA = c(ifelse(is.na(IPCA[1]), 1, IPCA[1]), IPCA[-1]),
+            CPI = c(ifelse(is.na(CPI[1]), 1, CPI[1]), CPI[-1])
+        ) %>%
         dplyr::mutate(IPCA = zoo::na.locf(IPCA), CPI = zoo::na.locf(CPI)) %>%
-        dplyr::mutate(RealExchangeRate = Ptax * CPI/IPCA) %>%
+        dplyr::mutate(RealExchangeRate = Ptax * CPI / IPCA) %>%
         dplyr::mutate(RealExchangeRate = c(0, diff(log(RealExchangeRate))))
-    return(data) 
+    return(data)
 }
 
 CalculateVolatilityForSector <- function(all_values, market_result) {
@@ -141,12 +172,12 @@ CalculateVolatilityForSector <- function(all_values, market_result) {
     market_volatility <- joined$MarketVolatility
     covariance <- rmgarch::rcov(dcc_fit)
     betas <- covariance[1, 2, ] / covariance[2, 2, ]
-    adjusted_volatility <- sqrt(sector_volatility^2 - (betas * market_volatility)^2)
+    adjusted_variance <- sector_volatility^2 - (betas * market_volatility)^2
     final_df <- joined %>%
         dplyr::select(Date, SectorReturn, MarketReturn) %>%
         dplyr::mutate(
-            SectorVolatility = adjusted_volatility,
-            SectorVariance = adjusted_volatility^2,
+            SectorVolatility = zoo::na.locf(sqrt(adjusted_variance)),
+            SectorVariance = adjusted_variance,
             NonAdjusted = sector_volatility,
             MarketVolatility = joined$MarketVolatility,
             MarketImpact = sqrt(betas^2 * market_volatility^2)
@@ -161,86 +192,116 @@ TestRatesForStationarity <- function(rates_data) {
     return(list(adf_test = adf_test, kpss_test = kpss_test))
 }
 
-ExecuteVARForSector <- function(sector_volatility, rates_data, real_exchange) {
+ExecuteVARForSector <- function(sector_volatility, rates_data, real_exchange, usa_rates) {
     `%>%` <- magrittr::`%>%`
     joined <- dplyr::inner_join(sector_volatility, rates_data, by = "Date") %>%
         dplyr::inner_join(real_exchange, by = "Date") %>%
-        dplyr::select(SectorVariance, Rate, RealExchangeRate)
-    return(vars::VAR(joined, p = 3, type = "const"))
+        dplyr::inner_join(usa_rates, by = "Date") %>%
+        dplyr::select(SectorVariance, Rate, RealExchangeRate, UsaRate)
+    optimal_lag <- vars::VARselect(joined, lag.max = 3, type = "const")$selection["AIC(n)"]
+    model <- vars::VAR(joined, p = optimal_lag, type = "const")
+    return(list(model = model, optimal_lag = optimal_lag))
 }
 
-ExecuteForSector <- function(start_date, sector_id, rates, real_exchange, market_values) {
+ExecuteForSector <- function(start_date, sector_id, rates, real_exchange, market_values, usa_rates) {
     all_values <- GetSectorValues(start_date, sector_id)
     sector_volatility <- CalculateVolatilityForSector(all_values, market_values)
-    var_model <- ExecuteVARForSector(sector_volatility$data, rates, real_exchange)
+    var_model <- ExecuteVARForSector(sector_volatility$data, rates, real_exchange, usa_rates)
     message(paste("Modelo calculado para o setor", sector_id))
     value <- list(sector = sector_id, var_model = var_model, data = sector_volatility, market_values = market_values, rates = rates, real_exchange = real_exchange)
     saveRDS(value, file = paste0("models/sector_", sector_id, ".rds"))
     return(value)
 }
 
+ExecuteForMarket <- function(market_values, rates, real_exchange, usa_rates) {
+    `%>%` <- magrittr::`%>%`
+    var_model <- ExecuteVARForSector(market_values$data %>% dplyr::select(Date, SectorVariance = MarketVolatility), rates, real_exchange, usa_rates)
+    message("Modelo calculado para o mercado")
+    value <- list(sector = "market", var_model = var_model, data = market_values, market_values = market_values, rates = rates, real_exchange = real_exchange)
+    saveRDS(value, file = "models/market.rds")
+    return(value)
+}
+
+SingleExecution <- function(market_values, rates, real_exchange, usa_rates) {
+    start <- Sys.time()
+    ran <- FALSE
+    try(
+        {
+            ExecuteForMarket(market_values, rates, real_exchange, usa_rates)
+            ran <- TRUE
+        },
+        silent = F
+    )
+    end <- Sys.time()
+    if (ran) {
+        message(paste("Executed for market in", end - start))
+    } else {
+        message("Error for market")
+    }
+}
+
+SingleExecutionSector <- function(start_date, sector, rates, real_exchange, market_values, usa_rates) {
+    start <- Sys.time()
+    ran <- FALSE
+    try(
+        {
+            ExecuteForSector(start_date, sector, rates, real_exchange, market_values, usa_rates)
+            ran <- TRUE
+        },
+        silent = F
+    )
+    end <- Sys.time()
+    if (ran) {
+        message(paste("Executed for sector", sector, "in", end - start))
+    } else {
+        message(paste("Error for sector", sector))
+    }
+}
+
 RemoveMarketImpact <- function(connection) {
-    start_date <- as.Date("2011-03-16")
+    start_date <- as.Date("2009-01-01")
     rates <- GetRates(connection, start_date)
     test_results <- TestRatesForStationarity(rates)
     if (test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
         stop("Rates are not stationary")
     }
     real_exchange <- GetRealExchangeRate(start_date)
+    usa_rates <- GetRatesUSA(start_date)
     saveRDS(rates, file = "models/rates.rds")
     saveRDS(real_exchange, file = "models/real_exchange.rds")
+    saveRDS(usa_rates, file = "models/usa_rates.rds")
     market_values <- GetMarketValues(connection, start_date)
     sectors <- GetSectors(connection)
     lista <- list()
     index <- 1
+    lista[[index]] <- future::future(SingleExecution(market_values, rates, real_exchange, usa_rates))
+    index <- index + 1
     for (sector in sectors$Id) {
-        lista[[index]] <- future::future({
-          start <- Sys.time()
-          ran <- FALSE
-          try({
-            ExecuteForSector(start_date, sector, rates, real_exchange, market_values)
-            ran <- TRUE
-          }, silent = F)
-          end <- Sys.time()
-          if(ran){
-            message(paste("Executed for sector", sector, "in", end-start))
-          } else {
-            message(paste("Error for sector", sector))
-          }
-        })
+        lista[[index]] <- future::future(SingleExecutionSector(start_date, sector, rates, real_exchange, market_values, usa_rates))
         index <- index + 1
     }
     return(lista)
 }
 
 RemoveMarketImpactSync <- function(connection) {
-    start_date <- as.Date("2011-03-16")
+    start_date <- as.Date("2009-01-01")
     rates <- GetRates(connection, start_date)
     test_results <- TestRatesForStationarity(rates)
     if (test_results$adf_test$p.value < 0.05 || test_results$kpss_test$p.value > 0.05) {
         stop("Rates are not stationary")
     }
     real_exchange <- GetRealExchangeRate(start_date)
+    usa_rates <- GetRatesUSA(start_date)
     saveRDS(rates, file = "models/rates.rds")
     saveRDS(real_exchange, file = "models/real_exchange.rds")
+    saveRDS(usa_rates, file = "models/usa_rates.rds")
     market_values <- GetMarketValues(connection, start_date)
+    SingleExecution(market_values, rates, real_exchange, usa_rates)
     sectors <- GetSectors(connection)
     for (sector in sectors$Id) {
-      start <- Sys.time()
-      ran <- FALSE
-      try({
-        ExecuteForSector(start_date, sector, rates, real_exchange, market_values)
-        ran <- TRUE
-      }, silent = F)
-      end <- Sys.time()
-      if(ran){
-        message(paste("Executed for sector", sector, "in", end-start))
-      } else {
-        message(paste("Error for sector", sector))
-      }
+        SingleExecutionSector(start_date, sector, rates, real_exchange, market_values, usa_rates)
     }
 }
-
 
 future::plan(future::multisession, workers = 3)
 if (!dir.exists("models")) {

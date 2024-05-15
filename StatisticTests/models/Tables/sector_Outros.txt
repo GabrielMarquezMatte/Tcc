@@ -1,99 +1,137 @@
 
 VAR Estimation Results:
 ========================= 
-Endogenous variables: SectorVariance, Rate, RealExchangeRate 
+Endogenous variables: SectorVariance, Rate, RealExchangeRate, UsaRate 
 Deterministic variables: const 
-Sample size: 3209 
-Log Likelihood: 59215.433 
+Sample size: 3628 
+Log Likelihood: 89423.887 
 Roots of the characteristic polynomial:
-0.9994 0.9458 0.3841 0.3841 0.3584 0.3223 0.3038 0.3038 0.2276
+    1     1 0.9259 0.3589 0.3589 0.3242 0.3242 0.2743 0.2608 0.2608 0.1835 0.1681
 Call:
-vars::VAR(y = joined, p = 3, type = "const")
+vars::VAR(y = joined, p = optimal_lag, type = "const")
 
 
 Estimation results for equation SectorVariance: 
 =============================================== 
-SectorVariance = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + const 
+SectorVariance = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + UsaRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + UsaRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + UsaRate.l3 + const 
 
                       Estimate Std. Error t value Pr(>|t|)    
-SectorVariance.l1    9.263e-01  1.747e-02  53.036  < 2e-16 ***
-Rate.l1              7.856e-04  2.622e-04   2.996 0.002757 ** 
-RealExchangeRate.l1  1.603e-04  2.985e-05   5.372 8.35e-08 ***
-SectorVariance.l2    1.671e-01  2.369e-02   7.055 2.10e-12 ***
-Rate.l2             -1.613e-03  3.581e-04  -4.504 6.91e-06 ***
-RealExchangeRate.l2 -1.492e-05  3.000e-05  -0.497 0.618894    
-SectorVariance.l3   -1.420e-01  1.742e-02  -8.151 5.12e-16 ***
-Rate.l3              8.347e-04  2.640e-04   3.162 0.001582 ** 
-RealExchangeRate.l3  6.153e-05  2.867e-05   2.146 0.031933 *  
-const                3.342e-06  8.784e-07   3.804 0.000145 ***
+SectorVariance.l1    8.864e-01  1.658e-02  53.447  < 2e-16 ***
+Rate.l1              2.525e-04  3.902e-04   0.647 0.517687    
+RealExchangeRate.l1  1.329e-04  4.361e-05   3.048 0.002323 ** 
+UsaRate.l1          -1.620e-03  1.179e-03  -1.374 0.169532    
+SectorVariance.l2    1.020e-01  2.213e-02   4.609 4.18e-06 ***
+Rate.l2             -1.491e-03  5.345e-04  -2.790 0.005306 ** 
+RealExchangeRate.l2  6.881e-05  4.366e-05   1.576 0.115045    
+UsaRate.l2           4.002e-04  1.686e-03   0.237 0.812386    
+SectorVariance.l3   -6.239e-02  1.658e-02  -3.762 0.000171 ***
+Rate.l3              1.259e-03  3.918e-04   3.214 0.001322 ** 
+RealExchangeRate.l3  5.223e-05  4.204e-05   1.242 0.214177    
+UsaRate.l3           1.122e-03  1.180e-03   0.951 0.341677    
+const                6.108e-06  1.379e-06   4.431 9.67e-06 ***
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-Residual standard error: 1.494e-05 on 3199 degrees of freedom
-Multiple R-Squared: 0.9205,	Adjusted R-squared: 0.9203 
-F-statistic:  4115 on 9 and 3199 DF,  p-value: < 2.2e-16 
+Residual standard error: 2.321e-05 on 3615 degrees of freedom
+Multiple R-Squared: 0.8771,	Adjusted R-squared: 0.8767 
+F-statistic:  2150 on 12 and 3615 DF,  p-value: < 2.2e-16 
 
 
 Estimation results for equation Rate: 
 ===================================== 
-Rate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + const 
+Rate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + UsaRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + UsaRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + UsaRate.l3 + const 
 
                       Estimate Std. Error t value Pr(>|t|)    
-SectorVariance.l1   -3.298e+00  1.219e+00  -2.704 0.006878 ** 
-Rate.l1              9.009e-01  1.831e-02  49.211  < 2e-16 ***
-RealExchangeRate.l1  8.114e-03  2.084e-03   3.893 0.000101 ***
-SectorVariance.l2    6.741e+00  1.654e+00   4.076 4.69e-05 ***
-Rate.l2              1.471e-01  2.500e-02   5.885 4.38e-09 ***
-RealExchangeRate.l2 -7.549e-03  2.094e-03  -3.604 0.000318 ***
-SectorVariance.l3   -4.421e+00  1.216e+00  -3.635 0.000282 ***
-Rate.l3             -4.848e-02  1.843e-02  -2.630 0.008574 ** 
-RealExchangeRate.l3  7.342e-03  2.002e-03   3.668 0.000249 ***
-const                1.154e-04  6.133e-05   1.882 0.059889 .  
+SectorVariance.l1   -1.247e+00  7.270e-01  -1.716  0.08631 .  
+Rate.l1              9.129e-01  1.711e-02  53.372  < 2e-16 ***
+RealExchangeRate.l1  5.897e-03  1.912e-03   3.085  0.00205 ** 
+UsaRate.l1           1.277e-01  5.167e-02   2.472  0.01347 *  
+SectorVariance.l2    2.427e+00  9.702e-01   2.501  0.01242 *  
+Rate.l2              1.326e-01  2.343e-02   5.658 1.65e-08 ***
+RealExchangeRate.l2 -7.891e-03  1.914e-03  -4.123 3.82e-05 ***
+UsaRate.l2          -6.137e-02  7.390e-02  -0.830  0.40634    
+SectorVariance.l3   -2.175e+00  7.270e-01  -2.993  0.00279 ** 
+Rate.l3             -4.586e-02  1.718e-02  -2.670  0.00762 ** 
+RealExchangeRate.l3  7.430e-03  1.843e-03   4.032 5.65e-05 ***
+UsaRate.l3          -7.100e-02  5.173e-02  -1.373  0.16995    
+const                1.715e-04  6.043e-05   2.838  0.00457 ** 
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-Residual standard error: 0.001043 on 3199 degrees of freedom
+Residual standard error: 0.001017 on 3615 degrees of freedom
 Multiple R-Squared: 0.999,	Adjusted R-squared: 0.999 
-F-statistic: 3.716e+05 on 9 and 3199 DF,  p-value: < 2.2e-16 
+F-statistic: 2.947e+05 on 12 and 3615 DF,  p-value: < 2.2e-16 
 
 
 Estimation results for equation RealExchangeRate: 
 ================================================= 
-RealExchangeRate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + const 
+RealExchangeRate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + UsaRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + UsaRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + UsaRate.l3 + const 
 
                       Estimate Std. Error t value Pr(>|t|)    
-SectorVariance.l1    1.058e+01  1.077e+01   0.982    0.326    
-Rate.l1             -1.110e+00  1.617e-01  -6.864 8.04e-12 ***
-RealExchangeRate.l1  9.722e-02  1.841e-02   5.280 1.38e-07 ***
-SectorVariance.l2    9.593e+00  1.461e+01   0.657    0.512    
-Rate.l2              1.190e+00  2.209e-01   5.389 7.61e-08 ***
-RealExchangeRate.l2 -1.784e-02  1.850e-02  -0.964    0.335    
-SectorVariance.l3   -1.489e+01  1.074e+01  -1.386    0.166    
-Rate.l3             -8.625e-02  1.628e-01  -0.530    0.596    
-RealExchangeRate.l3 -1.289e-02  1.769e-02  -0.729    0.466    
-const                3.447e-04  5.419e-04   0.636    0.525    
+SectorVariance.l1    5.0167584  6.5224061   0.769   0.4418    
+Rate.l1             -0.9785429  0.1534681  -6.376 2.04e-10 ***
+RealExchangeRate.l1  0.0910076  0.0171510   5.306 1.19e-07 ***
+UsaRate.l1           0.0880032  0.4636026   0.190   0.8495    
+SectorVariance.l2    1.9197673  8.7044994   0.221   0.8255    
+Rate.l2              1.1056204  0.2102091   5.260 1.53e-07 ***
+RealExchangeRate.l2 -0.0297419  0.0171693  -1.732   0.0833 .  
+UsaRate.l2          -0.0384680  0.6630311  -0.058   0.9537    
+SectorVariance.l3   -6.6217720  6.5223199  -1.015   0.3101    
+Rate.l3             -0.1330376  0.1541046  -0.863   0.3880    
+RealExchangeRate.l3 -0.0196141  0.0165347  -1.186   0.2356    
+UsaRate.l3          -0.0516448  0.4640862  -0.111   0.9114    
+const                0.0006809  0.0005422   1.256   0.2093    
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 
-Residual standard error: 0.009216 on 3199 degrees of freedom
-Multiple R-Squared: 0.02145,	Adjusted R-squared: 0.0187 
-F-statistic: 7.791 on 9 and 3199 DF,  p-value: 1.96e-11 
+Residual standard error: 0.009127 on 3615 degrees of freedom
+Multiple R-Squared: 0.01693,	Adjusted R-squared: 0.01367 
+F-statistic: 5.189 on 12 and 3615 DF,  p-value: 1.049e-08 
+
+
+Estimation results for equation UsaRate: 
+======================================== 
+UsaRate = SectorVariance.l1 + Rate.l1 + RealExchangeRate.l1 + UsaRate.l1 + SectorVariance.l2 + Rate.l2 + RealExchangeRate.l2 + UsaRate.l2 + SectorVariance.l3 + Rate.l3 + RealExchangeRate.l3 + UsaRate.l3 + const 
+
+                      Estimate Std. Error t value Pr(>|t|)    
+SectorVariance.l1   -4.279e-01  2.340e-01  -1.829   0.0675 .  
+Rate.l1             -3.759e-03  5.505e-03  -0.683   0.4947    
+RealExchangeRate.l1  1.294e-04  6.152e-04   0.210   0.8334    
+UsaRate.l1           1.021e+00  1.663e-02  61.395   <2e-16 ***
+SectorVariance.l2    1.566e-01  3.122e-01   0.501   0.6161    
+Rate.l2              1.064e-02  7.540e-03   1.411   0.1585    
+RealExchangeRate.l2 -1.028e-03  6.159e-04  -1.669   0.0952 .  
+UsaRate.l2           1.667e-02  2.378e-02   0.701   0.4834    
+SectorVariance.l3    6.131e-02  2.340e-01   0.262   0.7933    
+Rate.l3             -6.177e-03  5.528e-03  -1.118   0.2638    
+RealExchangeRate.l3  1.176e-04  5.931e-04   0.198   0.8428    
+UsaRate.l3          -3.744e-02  1.665e-02  -2.249   0.0246 *  
+const               -3.828e-05  1.945e-05  -1.968   0.0491 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+Residual standard error: 0.0003274 on 3615 degrees of freedom
+Multiple R-Squared: 0.9995,	Adjusted R-squared: 0.9995 
+F-statistic: 6.259e+05 on 12 and 3615 DF,  p-value: < 2.2e-16 
 
 
 
 Covariance matrix of residuals:
-                 SectorVariance      Rate RealExchangeRate
-SectorVariance        2.232e-10 1.663e-10        4.744e-09
-Rate                  1.663e-10 1.088e-06        2.686e-06
-RealExchangeRate      4.744e-09 2.686e-06        8.494e-05
+                 SectorVariance       Rate RealExchangeRate    UsaRate
+SectorVariance        5.386e-10  3.185e-10        4.709e-09  2.422e-10
+Rate                  3.185e-10  1.035e-06        2.357e-06 -1.692e-09
+RealExchangeRate      4.709e-09  2.357e-06        8.331e-05 -7.119e-08
+UsaRate               2.422e-10 -1.692e-09       -7.119e-08  1.072e-07
 
 Correlation matrix of residuals:
-                 SectorVariance    Rate RealExchangeRate
-SectorVariance          1.00000 0.01067          0.03445
-Rate                    0.01067 1.00000          0.27941
-RealExchangeRate        0.03445 0.27941          1.00000
+                 SectorVariance      Rate RealExchangeRate   UsaRate
+SectorVariance          1.00000  0.013491          0.02223  0.031881
+Rate                    0.01349  1.000000          0.25386 -0.005079
+RealExchangeRate        0.02223  0.253864          1.00000 -0.023824
+UsaRate                 0.03188 -0.005079         -0.02382  1.000000
 
 

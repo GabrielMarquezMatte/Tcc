@@ -20,15 +20,22 @@ GetSectors <- function(conn) {
 }
 
 ExportVARModelTable <- function(model, sectors) {
-  sector_name <- sectors %>% filter(Id == model$sector) %>% .$Name
+  sector_name <- model$sector
+  if(is.numeric(model$sector)) {
+    sector_name <- sectors %>% filter(Id == model$sector) %>% .$Name
+  }
   sink(paste("models/Tables/sector_", sector_name, ".txt", sep = ""))
-  print(summary(model$var_model))
+  print(summary(model$var_model$model))
   sink()
 }
 
 ExportVARImpact <- function(model, sectors) {
-  sector_name <- sectors %>% filter(Id == model$sector) %>% .$Name
-  impulse <- vars::irf(model$var_model, impulse = "Rate", response = c("SectorVariance"),
+  sector_name <- model$sector
+  if(is.numeric(model$sector)) {
+    sector_name <- sectors %>% filter(Id == model$sector) %>% .$Name
+  }
+  assign("optimal_lag", model$var_model$optimal_lag, envir = .GlobalEnv)
+  impulse <- vars::irf(model$var_model$model, impulse = "Rate", response = c("SectorVariance"),
                        n.ahead = 10,ortho = T, cumulative = F, boot = T)
   impulse$Upper$Rate <- impulse$Upper$Rate * 252
   impulse$Lower$Rate <- impulse$Lower$Rate * 252
@@ -71,14 +78,17 @@ ggplot(data, aes(x = Date)) +
 ggsave("images/VolMercado.png", bg = "white", create.dir = T)
 
 all_models <- lapply(1:15, \(x) readRDS(paste0("models/sector_", x, ".rds")))
+market_model <- readRDS("models/market.rds")
 
 # Exportar tabelas
 lapply(all_models, ExportVARModelTable, sectors)
+ExportVARModelTable(market_model, sectors)
 # Remove xlsx
 if (file.exists("models/Tables/impact.xlsx")) {
   file.remove("models/Tables/impact.xlsx")
 }
 lapply(all_models, ExportVARImpact, sectors)
+ExportVARImpact(market_model, sectors)
 
 uncvariances <- sapply(all_models, \(x) mean(x$data$data$NonAdjusted^2)*252)
 uncvariances_adjusted <- sapply(all_models, \(x) mean(x$data$data$SectorVariance, na.rm = F)*252)
@@ -98,10 +108,10 @@ sectors %>%
   labs(x = "Volatilidade Incondicional", y = "", title = "Volatilidade por Setor",
        subtitle = "Volatilidade anualizada", fill = "") +
   theme_minimal()+
-  theme(text = element_text(size = 20))+
+  theme(text = element_text(size = 10))+
   scale_fill_manual(values = c("Volatilidade" = "#ff7f00", "VolatilidadeAjustada" = "#377eb8"))
 
-ggsave("images/VarUnconditional.png", bg = "white")
+ggsave("images/VarUnconditional.png", bg = "white", width = 1920, height = 1080, units = "px")
 
 model$data$data %>%
   filter(Date >= '2010-01-01' & Date <= '2020-01-01') %>%
