@@ -49,6 +49,7 @@ ExportVARImpact <- function(model, sectors) {
 conn <- CreateConnection()
 model <- readRDS("models/sector_10.rds")
 rates <- readRDS("models/rates.rds")
+us_rates <- readRDS("models/usa_rates.rds")
 sectors <- GetSectors(conn) %>% arrange(Id)
 odbc::dbDisconnect(conn)
 
@@ -81,6 +82,9 @@ all_models <- lapply(1:15, \(x) readRDS(paste0("models/sector_", x, ".rds")))
 market_model <- readRDS("models/market.rds")
 
 # Exportar tabelas
+if(!dir.exists("models/Tables")) {
+  dir.create("models/Tables")
+}
 lapply(all_models, ExportVARModelTable, sectors)
 ExportVARModelTable(market_model, sectors)
 # Remove xlsx
@@ -131,3 +135,50 @@ model$data$data %>%
        col = "")
 
 ggsave("images/AdjustedVol.png", bg = "white")
+
+market_model$data$data %>%
+  filter(Date >= '2015-01-01' & Date <= '2020-01-01') %>%
+  inner_join(us_rates, by = "Date") %>%
+  ggplot(aes(x = Date))+
+  geom_line(aes(y = MarketVolatility*sqrt(252), col = "Volatilidade Mercado"), linewidth = 0.8, lty = 1)+
+  geom_line(aes(y = UsaRate*25, col = "Juros EUA"), linewidth = 0.8, lty = 2)+
+  theme_minimal()+
+  theme(legend.position = "bottom")+
+  scale_color_manual(values = c("Volatilidade Mercado" = "#ff7f00",
+                                "Juros EUA" = "#377eb8"))+
+  scale_y_continuous(labels = scales::percent, n.breaks = 10,
+                     sec.axis = sec_axis(~ ./25, name = "Juros EUA", labels = scales::percent))+
+  labs(x = "", y = "",
+       title = "Volatilidade e juros EUA",
+       col = "")
+
+ggsave("images/MarketImpact.png", bg = "white")
+
+teste <- model$data$data %>%
+  dplyr::inner_join(model$real_exchange, by = "Date")
+
+modelo <- lm(MarketReturn ~ RealExchangeRate, data = teste)
+
+summary(modelo)
+
+lm_eqn <- function(m){
+  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                   list(a = format(unname(coef(m)[1]), digits = 2),
+                        b = format(unname(coef(m)[2]), digits = 2),
+                        r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));
+}
+
+teste %>%
+  ggplot()+
+  geom_point(aes(x = RealExchangeRate, y = MarketReturn), size = 0.9)+
+  geom_smooth(aes(x = RealExchangeRate, y = MarketReturn), method = "lm", se = T, col = "red")+
+  theme_minimal()+
+  theme(legend.position = "bottom")+
+  scale_y_continuous(labels = scales::percent, n.breaks = 10)+
+  scale_x_continuous(labels = scales::percent, n.breaks = 10)+
+  labs(x = "Taxa de Câmbio Real", y = "Retorno de Mercado",
+       title = "Câmbio e Mercado",
+       col = "")
+
+ggsave("images/MarketReturn.png", bg = "white")

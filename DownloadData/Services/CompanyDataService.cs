@@ -6,6 +6,8 @@ using DownloadData.Entities;
 using DownloadData.Models.Arguments;
 using DownloadData.Repositories;
 using DownloadData.Responses;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Runtime.InteropServices;
 
 namespace DownloadData.Services
 {
@@ -64,20 +66,20 @@ namespace DownloadData.Services
             companies[company.Cnpj] = company;
             return company;
         }
-        private async Task SaveCompanyIndustriesAsync(Company company, Industry industry, Dictionary<(string, string), CompanyIndustry> companyIndustries, CancellationToken cancellationToken)
+        private ValueTask<EntityEntry<CompanyIndustry>> SaveCompanyIndustriesAsync(Company company, Industry industry, Dictionary<(string, string), CompanyIndustry> companyIndustries, CancellationToken cancellationToken)
         {
             var companyIndustryKey = (company.Cnpj, industry.Name);
-            if (companyIndustries.ContainsKey(companyIndustryKey))
+            ref var companyIndustry = ref CollectionsMarshal.GetValueRefOrAddDefault(companyIndustries, companyIndustryKey, out _);
+            if (companyIndustry != null)
             {
-                return;
+                return ValueTask.FromResult(stockContext.CompanyIndustries.Entry(companyIndustry));
             }
-            CompanyIndustry companyIndustry = new()
+            companyIndustry = new()
             {
                 Company = company,
                 Industry = industry,
             };
-            await stockContext.CompanyIndustries.AddAsync(companyIndustry, cancellationToken).ConfigureAwait(false);
-            companyIndustries[(company.Cnpj, industry.Name)] = companyIndustry;
+            return stockContext.CompanyIndustries.AddAsync(companyIndustry, cancellationToken);
         }
         private async Task SaveTickersAsync(Company company, Dictionary<string, Ticker> tickers, IEnumerable<CompanyCodes> codes, CancellationToken cancellationToken)
         {
@@ -97,16 +99,13 @@ namespace DownloadData.Services
                 tickers[otherCode.Code] = ticker;
             }
         }
-        private async Task ProcessIndustriesAsync(Company company,
+        private Task ProcessIndustriesAsync(Company company,
                                                   CompanyResponse companyResponse,
                                                   Dictionary<string, Industry> industriesInDb,
                                                   Dictionary<(string, string), CompanyIndustry> companyIndustriesInDb,
                                                   CancellationToken cancellationToken)
         {
-            await foreach (var industry in SaveIndustryAsync(companyResponse, industriesInDb, cancellationToken).ConfigureAwait(false))
-            {
-                await SaveCompanyIndustriesAsync(company, industry, companyIndustriesInDb, cancellationToken).ConfigureAwait(false);
-            }
+            return SaveIndustryAsync(companyResponse, industriesInDb, cancellationToken).ForEachAwaitAsync(async industry => await SaveCompanyIndustriesAsync(company, industry, companyIndustriesInDb, cancellationToken).ConfigureAwait(false), cancellationToken);
         }
         private async Task ProcessSingleCompanyResponseAsync(CompanyResponse companyResponse,
                                                              Dictionary<string, Company> companiesInDb,
@@ -125,18 +124,15 @@ namespace DownloadData.Services
             await SaveTickersAsync(company, tickersInDb, companyResponse.OtherCodes, cancellationToken).ConfigureAwait(false);
             _companyHasBeenSaved(logger, companyResponse.CompanyName, companyResponse.Cnpj, null);
         }
-        private async Task ProcessCompanyResponsesAsync(Dictionary<string, Company> companiesInDb,
+        private Task ProcessCompanyResponsesAsync(Dictionary<string, Company> companiesInDb,
                                                         Dictionary<string, Ticker> tickersInDb,
                                                         Dictionary<string, Industry> industriesInDb,
                                                         Dictionary<(string, string), CompanyIndustry> companyIndustriesInDb,
                                                         CompanyDataArgs companyDataArgs,
                                                         CancellationToken cancellationToken)
         {
-            await foreach (var companyResponse in companyDataRepository.GetCompaniesAsync(companyDataArgs, cancellationToken).ConfigureAwait(false))
-            {
-                await ProcessSingleCompanyResponseAsync(companyResponse, companiesInDb, tickersInDb, industriesInDb,
-                                                        companyIndustriesInDb, cancellationToken).ConfigureAwait(false);
-            }
+            return companyDataRepository.GetCompaniesAsync(companyDataArgs, cancellationToken)
+                                        .ForEachAwaitAsync(companyResponse => ProcessSingleCompanyResponseAsync(companyResponse, companiesInDb, tickersInDb, industriesInDb, companyIndustriesInDb, cancellationToken), cancellationToken);
         }
         public async Task SaveCompaniesAsync(CompanyDataArgs companyDataArgs, CancellationToken cancellationToken)
         {

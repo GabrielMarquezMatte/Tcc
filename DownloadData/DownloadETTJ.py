@@ -24,6 +24,8 @@ class OptimizeResult(NamedTuple):
     beta1: float
     beta2: float
     tau0: float
+    beta3: float
+    tau1: float
     rate: float
 
 class DownloadETTJ:
@@ -61,9 +63,14 @@ class DownloadETTJ:
 class Optimizer:
     @staticmethod
     @njit
-    def nelson_siegel(t: float, beta0: float, beta1: float, beta2: float, tau0: float) -> float:
-        time_part = (1-np.exp(-t*tau0))/(t*tau0)
-        return beta0 + beta1*time_part + beta2*(time_part-np.exp(-t*tau0))
+    def nelson_siegel(t: float, beta0: float, beta1: float, beta2: float, tau0: float, beta3: float, tau1: float) -> float:
+        t_tau0 = t*tau0
+        exp_tau0 = np.exp(-t_tau0)
+        time_part0 = (1-exp_tau0)/t_tau0
+        t_tau1 = t*tau1
+        exp_tau1 = np.exp(-t_tau1)
+        time_part1 = (1-exp_tau1)/t_tau1
+        return beta0 + beta1*time_part0 + beta2*(time_part0-exp_tau0) + beta3*(time_part1-exp_tau1)
     
     @staticmethod
     def _curve_fit(func, x, y, p0):
@@ -74,7 +81,7 @@ class Optimizer:
         x = data["AnosVencimento"].to_numpy()
         y = data["Taxa Compra Manhã"].to_numpy()
         try:
-            popt, _ = await loop.run_in_executor(executor, Optimizer._curve_fit, Optimizer.nelson_siegel, x, y, (0.1, 0.01, -0.05, 1))
+            popt, _ = await loop.run_in_executor(executor, Optimizer._curve_fit, Optimizer.nelson_siegel, x, y, (0.1, 0.01, -0.05, 1, -0.05, 1))
             return data["Dia"].iloc[0].date(), *popt, Optimizer.nelson_siegel(1, *popt)
         except Exception as e:
             logger.error("Error fitting %s - %s - %s", data['Dia'].iloc[0].date(), data, e)
@@ -102,7 +109,7 @@ async def execute_for_year(year: int, pool: asyncpg.Pool, downloader: DownloadET
             fit_tasks.append(fit_task)
     for fit_task in fit_tasks:
         parameters.append(await fit_task)
-    await save(pool, parameters)
+    # await save(pool, parameters)
     logger.info(f"Year {year} done")
     return parameters
 
@@ -122,7 +129,7 @@ def plot_today_ettj(times: np.ndarray, last_result: list[OptimizeResult]):
 
 def plot_historical_ettj(extended: list[OptimizeResult]):
     excel = pd.read_excel("Juros.xlsx", sheet_name="Rates")
-    df = pd.DataFrame(extended, columns=["Dia", "Beta0", "Beta1", "Beta2", "Tau0", "RateModel"])
+    df = pd.DataFrame(extended, columns=["Dia", "Beta0", "Beta1", "Beta2", "Tau0", "Beta3", "Tau1", "RateModel"])
     df["Dia"] = pd.to_datetime(df["Dia"])
     df = df.merge(excel, left_on="Dia", right_on="Date", how="inner")
     df = df.drop(columns=["Date"])

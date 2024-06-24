@@ -155,12 +155,11 @@ namespace DownloadData.Repositories
             var historicalData = await stockContext.HistoricalData.Where(x => x.Date >= startDate && x.Date <= endDate)
                                                                   .ToDictionaryAsync(historicalData => (historicalData.Ticker!, historicalData.Date), cancellationToken)
                                                                   .ConfigureAwait(false);
-            var task = ProcessAllFilesAsync(tickers, historicalData, historicalType, dates, maxDegreeOfParallelism, cancellationToken);
-            await foreach (var data in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-            {
-                await stockContext.HistoricalData.AddAsync(data, cancellationToken).ConfigureAwait(false);
-            }
-            await task.ConfigureAwait(false);
+            var tasks = ProcessAllFilesAsync(tickers, historicalData, historicalType, dates, maxDegreeOfParallelism, cancellationToken);
+            await channel.Reader.ReadAllAsync(cancellationToken)
+                                .ForEachAwaitWithCancellationAsync(async (data, cancellationToken) => await stockContext.HistoricalData.AddAsync(data, cancellationToken).ConfigureAwait(false), cancellationToken)
+                                .ConfigureAwait(false);
+            await tasks.ConfigureAwait(false);
             _finishedProcessingAll(logger, _lines, _time, null);
         }
     }

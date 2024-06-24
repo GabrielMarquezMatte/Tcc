@@ -97,6 +97,7 @@ namespace DownloadData.Repositories
                 await CompanyChannel.Writer.WriteAsync(company!, cancellationToken).ConfigureAwait(false);
             }
         }
+#pragma warning disable IDISP013 // Await in using
         private async Task ProcessCompaniesAsync(CompanyDataArgs companyDataArgs, CancellationToken cancellationToken)
         {
             using SemaphoreSlim semaphore = new(companyDataArgs.MaxParallelism);
@@ -104,13 +105,16 @@ namespace DownloadData.Repositories
             {
                 if (companyDataArgs.Companies.Any())
                 {
-                    var tasks = companyDataArgs.Companies.Select(async codeCvm => await ProcessCompanyResponseAsync(codeCvm, semaphore, cancellationToken).ConfigureAwait(false));
+                    var tasks = companyDataArgs.Companies.Select(codeCvm => ProcessCompanyResponseAsync(codeCvm, semaphore, cancellationToken));
                     await Task.WhenAll(tasks).ConfigureAwait(false);
                     return;
                 }
                 var response = await FetchCompaniesAsync(semaphore, cancellationToken).ConfigureAwait(false);
-                if (response?.Results.Any() != true) return;
-                var tasks1 = response.Results.Select(async result => await ProcessCompanyResponseAsync(result.CodeCvm, semaphore, cancellationToken).ConfigureAwait(false));
+                var tasks1 = response?.Results.Select(result => ProcessCompanyResponseAsync(result.CodeCvm, semaphore, cancellationToken));
+                if(tasks1 == null)
+                {
+                    return;
+                }
                 await Task.WhenAll(tasks1).ConfigureAwait(false);
             }
             finally
@@ -118,6 +122,7 @@ namespace DownloadData.Repositories
                 CompanyChannel.Writer.Complete();
             }
         }
+#pragma warning restore IDISP013 // Await in using
         public async IAsyncEnumerable<CompanyResponse> GetCompaniesAsync(CompanyDataArgs companyDataArgs, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var task = ProcessCompaniesAsync(companyDataArgs, cancellationToken);
