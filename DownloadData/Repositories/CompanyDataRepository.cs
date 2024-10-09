@@ -111,7 +111,7 @@ namespace DownloadData.Repositories
                 }
                 var response = await FetchCompaniesAsync(semaphore, cancellationToken).ConfigureAwait(false);
                 var tasks1 = response?.Results.Select(result => ProcessCompanyResponseAsync(result.CodeCvm, semaphore, cancellationToken));
-                if(tasks1 == null)
+                if (tasks1 == null)
                 {
                     return;
                 }

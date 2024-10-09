@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DownloadData.Data;
@@ -19,7 +18,7 @@ namespace DownloadData.Services
         {
             return historicalType switch
             {
-                HistoricalType.Day => Enumerable.Range(0, endDate.DayNumber - startDate.DayNumber + 1).Select(startDate.AddDays).Where(date => date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday),
+                HistoricalType.Day => Enumerable.Range(0, endDate.DayNumber - startDate.DayNumber + 1).Select(startDate.AddDays).Where(date => date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday),
                 HistoricalType.Month => Enumerable.Range(0, (endDate.Year - startDate.Year) * 12 + endDate.Month - startDate.Month + 1)
                     .Select(startDate.AddMonths),
                 HistoricalType.Year => Enumerable.Range(0, endDate.Year - startDate.Year + 1).Select(startDate.AddYears),

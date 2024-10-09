@@ -1,7 +1,9 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Channels;
 using CommunityToolkit.HighPerformance.Buffers;
@@ -12,13 +14,13 @@ using DownloadData.ValueObjects;
 namespace DownloadData.Readers
 {
     public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers,
-                                             IDictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
+                                             Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
                                              ChannelWriter<HistoricalData> channel)
     {
         public int Lines { get; private set; }
         public TimeSpan Time { get; private set; }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe static DateOnly ParseDate(ReadOnlySpan<char> span)
+        private static DateOnly ParseDate(ReadOnlySpan<char> span)
         {
             return new((span[0] - '0') * 1000 + (span[1] - '0') * 100 + (span[2] - '0') * 10 + (span[3] - '0'), (span[4] - '0') * 10 + (span[5] - '0'), (span[6] - '0') * 10 + (span[7] - '0'));
         }
@@ -48,23 +50,26 @@ namespace DownloadData.Readers
                        ParseDouble(span.Slice(108, 13)), ParseDouble(span.Slice(188, 13)), ParseDate(span.Slice(202, 8)));
         }
 
-        private HistoricalData? ProcessLine(ReadOnlySpan<char> span)
+        private bool TryProcessLine(ReadOnlySpan<char> span, [NotNullWhen(true)] out HistoricalData? data)
         {
+            data = null;
             if (span[..3] is "99C" or "00C")
             {
-                return null;
+                return false;
             }
             var tickerSpan = span.Slice(12, 12).TrimEnd(' ');
             if (!tickers.TryGetValue(tickerSpan, out var ticker))
             {
-                return null;
+                return false;
             }
             var response = ParseLine(tickerSpan, span);
-            if(historicalData.ContainsKey((ticker, response.Date)))
+            var key = (ticker, response.Date);
+            ref var newData = ref CollectionsMarshal.GetValueRefOrAddDefault(historicalData, key, out var exists);
+            if (exists)
             {
-                return null;
+                return false;
             }
-            HistoricalData historical = new()
+            newData = new()
             {
                 Ticker = ticker,
                 Date = response.Date,
@@ -76,10 +81,10 @@ namespace DownloadData.Readers
                 Strike = response.Strike,
                 Expiration = response.Expiration,
             };
-            historicalData.Add((ticker, response.Date), historical);
-            return historical;
+            data = newData;
+            return true;
         }
-        public async Task ProcessZipAsync(CancellationToken cancellationToken)
+        public async ValueTask ProcessZipAsync(CancellationToken cancellationToken)
         {
             var stopWatch = Stopwatch.StartNew();
             var stream = zipArchive.Entries[0].Open();
@@ -92,8 +97,7 @@ namespace DownloadData.Readers
                 while (read > 0)
                 {
                     Lines++;
-                    var data = ProcessLine(buffer.Span);
-                    if (data is not null)
+                    if (TryProcessLine(buffer.Span, out var data))
                     {
                         await channel.WriteAsync(data, cancellationToken).ConfigureAwait(false);
                     }

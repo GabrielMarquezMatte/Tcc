@@ -13,6 +13,7 @@ using DownloadData.Enums;
 using DownloadData.Models.Options;
 using DownloadData.Readers;
 using DownloadData.ValueObjects;
+using System.Runtime.CompilerServices;
 
 namespace DownloadData.Repositories
 {
@@ -43,25 +44,41 @@ namespace DownloadData.Repositories
             "Finished processing all historical data. Processed {Lines} lines in {Time}");
         private int _lines;
         private TimeSpan _time;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void LogMessage(Action<ILogger, string, Exception?> action, ILogger logger, DateOnly date, HistoricalType historicalType, Exception? exception = null)
         {
             action(logger, DateToStringLog(historicalType, date), exception);
         }
-        private static string TypeToString(HistoricalType historicalType) => historicalType.GetLabel() ?? throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null);
-        private static string DateToString(HistoricalType historicalType, DateOnly date) => historicalType switch
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static string TypeToString(HistoricalType historicalType)
         {
-            HistoricalType.Day => date.ToString("ddMMyyyy", CultureInfo.InvariantCulture),
-            HistoricalType.Month => date.ToString("MMyyyy", CultureInfo.InvariantCulture),
-            HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
-            _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
-        };
-        private static string DateToStringLog(HistoricalType historicalType, DateOnly date) => historicalType switch
+            return historicalType.GetLabel() ?? throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static string DateToString(HistoricalType historicalType, DateOnly date)
         {
-            HistoricalType.Day => date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
-            HistoricalType.Month => date.ToString("MM/yyyy", CultureInfo.InvariantCulture),
-            HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
-            _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
-        };
+            return historicalType switch
+            {
+                HistoricalType.Day => date.ToString("ddMMyyyy", CultureInfo.InvariantCulture),
+                HistoricalType.Month => date.ToString("MMyyyy", CultureInfo.InvariantCulture),
+                HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
+                _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
+            };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static string DateToStringLog(HistoricalType historicalType, DateOnly date)
+        {
+            return historicalType switch
+            {
+                HistoricalType.Day => date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
+                HistoricalType.Month => date.ToString("MM/yyyy", CultureInfo.InvariantCulture),
+                HistoricalType.Year => date.ToString("yyyy", CultureInfo.InvariantCulture),
+                _ => throw new ArgumentOutOfRangeException(nameof(historicalType), historicalType, message: null)
+            };
+        }
+
         private Uri BuildUri(HistoricalType historicalType, DateOnly date)
         {
             var url = urlOptions.Value.HistoricalData;
@@ -120,14 +137,10 @@ namespace DownloadData.Repositories
                                                 IEnumerable<DateOnly> dates, int maxDegreeOfParallelism,
                                                 CancellationToken cancellationToken)
         {
-            List<Task> tasks = [];
             using SemaphoreSlim semaphore = new(maxDegreeOfParallelism);
             try
             {
-                foreach (var date in dates)
-                {
-                    tasks.Add(ProcessSingleFileAsync(semaphore, tickers, historicalDataDict, historicalType, date, cancellationToken));
-                }
+                var tasks = dates.Select(async date => await ProcessSingleFileAsync(semaphore, tickers, historicalDataDict, historicalType, date, cancellationToken).ConfigureAwait(false));
                 await Task.WhenAll(tasks).ConfigureAwait(false);
             }
             finally
@@ -150,6 +163,9 @@ namespace DownloadData.Repositories
                 case HistoricalType.Year:
                     startDate = startDate.AddDays(-startDate.DayOfYear + 1);
                     endDate = endDate.AddDays(-endDate.DayOfYear + 1).AddYears(1).AddDays(-1);
+                    break;
+                case HistoricalType.Day:
+                default:
                     break;
             }
             var historicalData = await stockContext.HistoricalData.Where(x => x.Date >= startDate && x.Date <= endDate)
