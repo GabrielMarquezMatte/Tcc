@@ -10,7 +10,7 @@ namespace DownloadData.Converters
         public override DateOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var value = reader.GetString();
-            if(string.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 return DateOnly.MinValue;
             }

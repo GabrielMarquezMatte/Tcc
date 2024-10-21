@@ -12,7 +12,6 @@ using DownloadData.Entities;
 using DownloadData.Enums;
 using DownloadData.Models.Options;
 using DownloadData.Readers;
-using DownloadData.ValueObjects;
 using System.Runtime.CompilerServices;
 
 namespace DownloadData.Repositories
@@ -115,7 +114,7 @@ namespace DownloadData.Repositories
             }
         }
         private async Task ProcessSingleFileAsync(SemaphoreSlim semaphore,
-                                                  IReadOnlyDictionary<TickerKey, Ticker> tickers,
+                                                  SpanLookup tickers,
                                                   Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
                                                   HistoricalType historicalType, DateOnly date,
                                                   CancellationToken cancellationToken)
@@ -131,7 +130,7 @@ namespace DownloadData.Repositories
             _time += reader.Time;
             _finishedProcessing(logger, DateToStringLog(historicalType, date), reader.Lines, reader.Time, null);
         }
-        private async Task ProcessAllFilesAsync(IReadOnlyDictionary<TickerKey, Ticker> tickers,
+        private async Task ProcessAllFilesAsync(SpanLookup tickers,
                                                 Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
                                                 HistoricalType historicalType,
                                                 IEnumerable<DateOnly> dates, int maxDegreeOfParallelism,
@@ -148,7 +147,7 @@ namespace DownloadData.Repositories
                 channel.Writer.Complete();
             }
         }
-        public async Task GetHistoricalDataAsync(IReadOnlyDictionary<TickerKey, Ticker> tickers,
+        public async Task GetHistoricalDataAsync(SpanLookup tickers,
                                                  ReadOnlyCollection<DateOnly> dates, HistoricalType historicalType,
                                                  int maxDegreeOfParallelism, CancellationToken cancellationToken)
         {

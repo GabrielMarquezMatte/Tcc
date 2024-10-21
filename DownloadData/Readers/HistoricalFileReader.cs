@@ -9,11 +9,10 @@ using System.Threading.Channels;
 using CommunityToolkit.HighPerformance.Buffers;
 using DownloadData.Entities;
 using DownloadData.Responses;
-using DownloadData.ValueObjects;
 
 namespace DownloadData.Readers
 {
-    public sealed class HistoricalFileReader(ZipArchive zipArchive, IReadOnlyDictionary<TickerKey, Ticker> tickers,
+    public sealed class HistoricalFileReader(ZipArchive zipArchive, SpanLookup tickers,
                                              Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
                                              ChannelWriter<HistoricalData> channel)
     {
@@ -92,7 +91,7 @@ namespace DownloadData.Readers
             {
                 using MemoryOwner<char> buffer = MemoryOwner<char>.Allocate(247, ArrayPool<char>.Shared, AllocationMode.Default);
                 var memory = buffer.Memory;
-                using StreamReader reader = new(stream, Encoding.ASCII, leaveOpen: true, bufferSize: 1024 * 1024, detectEncodingFromByteOrderMarks: false);
+                using StreamReader reader = new(stream, Encoding.ASCII, detectEncodingFromByteOrderMarks: false, bufferSize: 1024 * 1024, leaveOpen: true);
                 var read = await reader.ReadBlockAsync(memory, cancellationToken).ConfigureAwait(false);
                 while (read > 0)
                 {

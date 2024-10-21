@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using DownloadData.Data;
 using DownloadData.Enums;
 using DownloadData.Repositories;
-using DownloadData.ValueObjects;
 using DownloadData.Models.Arguments;
 
 namespace DownloadData.Services
@@ -27,7 +26,7 @@ namespace DownloadData.Services
         }
         public async Task ProcessFilesAsync(HistoricalDataArgs historicalDataArgs, CancellationToken cancellationToken)
         {
-            var tickers = await stockContext.Tickers.ToDictionaryAsync(ticker => new TickerKey(ticker.StockTicker), cancellationToken).ConfigureAwait(false);
+            var tickers = await stockContext.Tickers.ToDictionaryAsync(ticker => ticker.StockTicker, cancellationToken).ConfigureAwait(false);
             var hasData = await stockContext.HistoricalData.AnyAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             if (historicalDataArgs.StartDate == null)
             {
@@ -39,7 +38,7 @@ namespace DownloadData.Services
             {
                 return;
             }
-            await historicalDataRepository.GetHistoricalDataAsync(tickers, datesReadonlyCollection, historicalDataArgs.HistoricalType, historicalDataArgs.MaxParallelism, cancellationToken).ConfigureAwait(false);
+            await historicalDataRepository.GetHistoricalDataAsync(tickers.GetAlternateLookup<ReadOnlySpan<char>>(), datesReadonlyCollection, historicalDataArgs.HistoricalType, historicalDataArgs.MaxParallelism, cancellationToken).ConfigureAwait(false);
             var lines = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _linesChanged(logger, lines, arg3: null);
         }
