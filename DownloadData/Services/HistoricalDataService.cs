@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using DownloadData.Data;
 using DownloadData.Enums;
 using DownloadData.Repositories;
@@ -7,12 +6,8 @@ using DownloadData.Models.Arguments;
 
 namespace DownloadData.Services
 {
-    public sealed class HistoricalDataService(StockContext stockContext, HistoricalDataRepository historicalDataRepository, ILogger<HistoricalDataService> logger)
+    public sealed class HistoricalDataService(StockContext stockContext, HistoricalDataRepository historicalDataRepository)
     {
-        private static readonly Action<ILogger, int, Exception?> _linesChanged = LoggerMessage.Define<int>(
-            LogLevel.Information,
-            new EventId(1, "LinesChanged"),
-            "Changed {Lines} lines in the database");
         private static IEnumerable<DateOnly> GetDates(DateOnly startDate, DateOnly endDate, HistoricalType historicalType)
         {
             return historicalType switch
@@ -39,8 +34,7 @@ namespace DownloadData.Services
                 return;
             }
             await historicalDataRepository.GetHistoricalDataAsync(tickers.GetAlternateLookup<ReadOnlySpan<char>>(), datesReadonlyCollection, historicalDataArgs.HistoricalType, historicalDataArgs.MaxParallelism, cancellationToken).ConfigureAwait(false);
-            var lines = await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            _linesChanged(logger, lines, arg3: null);
+            await stockContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

@@ -13,6 +13,7 @@ using DownloadData.Enums;
 using DownloadData.Models.Options;
 using DownloadData.Readers;
 using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
 
 namespace DownloadData.Repositories
 {
@@ -41,6 +42,14 @@ namespace DownloadData.Repositories
             LogLevel.Information,
             new EventId(4, "FinishedProcessingAll"),
             "Finished processing all historical data. Processed {Lines} lines in {Time}");
+        private static readonly Action<ILogger, string, Exception?> _bulkInsertNotOptimized = LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(5, "UnoptimizedBulkInsert"),
+            "Tips for optimizing bulk insert: {Message}");
+        private static readonly Action<ILogger, int, Exception?> _linesChanged = LoggerMessage.Define<int>(
+            LogLevel.Information,
+            new EventId(6, "LinesChanged"),
+            "Changed {Lines} lines in the database");
         private int _lines;
         private TimeSpan _time;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,7 +124,7 @@ namespace DownloadData.Repositories
         }
         private async Task ProcessSingleFileAsync(SemaphoreSlim semaphore,
                                                   SpanLookup tickers,
-                                                  Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
+                                                  ConcurrentDictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
                                                   HistoricalType historicalType, DateOnly date,
                                                   CancellationToken cancellationToken)
         {
@@ -131,7 +140,7 @@ namespace DownloadData.Repositories
             _finishedProcessing(logger, DateToStringLog(historicalType, date), reader.Lines, reader.Time, null);
         }
         private async Task ProcessAllFilesAsync(SpanLookup tickers,
-                                                Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
+                                                ConcurrentDictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalDataDict,
                                                 HistoricalType historicalType,
                                                 IEnumerable<DateOnly> dates, int maxDegreeOfParallelism,
                                                 CancellationToken cancellationToken)
@@ -170,12 +179,21 @@ namespace DownloadData.Repositories
             var historicalData = await stockContext.HistoricalData.Where(x => x.Date >= startDate && x.Date <= endDate)
                                                                   .ToDictionaryAsync(historicalData => (historicalData.Ticker!, historicalData.Date), cancellationToken)
                                                                   .ConfigureAwait(false);
-            var tasks = ProcessAllFilesAsync(tickers, historicalData, historicalType, dates, maxDegreeOfParallelism, cancellationToken);
-            await channel.Reader.ReadAllAsync(cancellationToken)
-                                .ForEachAwaitWithCancellationAsync(async (data, cancellationToken) => await stockContext.HistoricalData.AddAsync(data, cancellationToken).ConfigureAwait(false), cancellationToken)
-                                .ConfigureAwait(false);
+            ConcurrentDictionary<(Ticker, DateOnly Date), HistoricalData> concurrentData = new(historicalData);
+            var tasks = ProcessAllFilesAsync(tickers, concurrentData, historicalType, dates, maxDegreeOfParallelism, cancellationToken);
+            List<HistoricalData> historicalDatas = [];
+            await foreach (var result in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                historicalDatas.Add(result);
+            }
             await tasks.ConfigureAwait(false);
+            var bulkInsert = await stockContext.HistoricalData.BulkInsertOptimizedAsync(historicalDatas, cancellationToken).ConfigureAwait(false);
             _finishedProcessingAll(logger, _lines, _time, null);
+            if (!bulkInsert.IsOptimized)
+            {
+                _bulkInsertNotOptimized(logger, bulkInsert.TipsText, null);
+            }
+            _linesChanged(logger, historicalDatas.Count, null);
         }
     }
 }

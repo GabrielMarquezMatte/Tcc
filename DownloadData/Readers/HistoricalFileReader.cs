@@ -1,9 +1,9 @@
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Channels;
 using CommunityToolkit.HighPerformance.Buffers;
@@ -13,7 +13,7 @@ using DownloadData.Responses;
 namespace DownloadData.Readers
 {
     public sealed class HistoricalFileReader(ZipArchive zipArchive, SpanLookup tickers,
-                                             Dictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
+                                             ConcurrentDictionary<(Ticker ticker, DateOnly Date), HistoricalData> historicalData,
                                              ChannelWriter<HistoricalData> channel)
     {
         public int Lines { get; private set; }
@@ -63,12 +63,7 @@ namespace DownloadData.Readers
             }
             var response = ParseLine(tickerSpan, span);
             var key = (ticker, response.Date);
-            ref var newData = ref CollectionsMarshal.GetValueRefOrAddDefault(historicalData, key, out var exists);
-            if (exists)
-            {
-                return false;
-            }
-            newData = new()
+            HistoricalData newData = new()
             {
                 Ticker = ticker,
                 Date = response.Date,
@@ -80,6 +75,10 @@ namespace DownloadData.Readers
                 Strike = response.Strike,
                 Expiration = response.Expiration,
             };
+            if (!historicalData.TryAdd(key, newData))
+            {
+                return false;
+            }
             data = newData;
             return true;
         }

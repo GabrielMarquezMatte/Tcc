@@ -10,24 +10,25 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.13.0" />
+    <PackageReference Include="Azure.Identity" Version="1.13.1" />
     <PackageReference Include="Cocona" Version="2.2.0" />
-    <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.3.2" />
+    <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0-preview2" />
     <PackageReference Include="DotNext.IO" Version="5.14.0" />
-    <PackageReference Include="FastEnum" Version="2.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0-rc.2.24474.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0-rc.2.24474.1">
+    <PackageReference Include="FastEnum" Version="2.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0-rc.2.24474.1" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0-rc.2.24473.5" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0-rc.2.24473.5" />
-    <PackageReference Include="Microsoft.Identity.Client" Version="4.66.0" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0-rc.2" />
-    <PackageReference Include="System.Formats.Asn1" Version="9.0.0-rc.2.24473.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.66.2" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.1" />
+    <PackageReference Include="System.Formats.Asn1" Version="9.0.0" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-    <PackageReference Include="YahooQuotesApi" Version="6.0.0" />
+    <PackageReference Include="YahooQuotesApi" Version="7.0.0" />
+    <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="9.103.6.2" />
   </ItemGroup>
 
   <ItemGroup>

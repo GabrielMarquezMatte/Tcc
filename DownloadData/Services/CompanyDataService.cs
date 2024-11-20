@@ -69,10 +69,10 @@ namespace DownloadData.Services
         private ValueTask<EntityEntry<CompanyIndustry>> SaveCompanyIndustriesAsync(Company company, Industry industry, Dictionary<(string, string), CompanyIndustry> companyIndustries, CancellationToken cancellationToken)
         {
             var companyIndustryKey = (company.Cnpj, industry.Name);
-            ref var companyIndustry = ref CollectionsMarshal.GetValueRefOrAddDefault(companyIndustries, companyIndustryKey, out _);
-            if (companyIndustry != null)
+            ref var companyIndustry = ref CollectionsMarshal.GetValueRefOrAddDefault(companyIndustries, companyIndustryKey, out var exists);
+            if (exists)
             {
-                return ValueTask.FromResult(stockContext.CompanyIndustries.Entry(companyIndustry));
+                return ValueTask.FromResult(stockContext.CompanyIndustries.Entry(companyIndustry!));
             }
             companyIndustry = new()
             {

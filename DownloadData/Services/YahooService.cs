@@ -21,29 +21,29 @@ namespace DownloadData.Services
             LogLevel.Information,
             new EventId(3, "EndRequest"),
             "End request in {Elapsed}");
-        private async Task<Dictionary<string, Security?>.ValueCollection> GetSecuritiesAsync(IEnumerable<string> tickers, CancellationToken cancellationToken)
+        private async Task<IEnumerable<History>> GetSecuritiesAsync(IEnumerable<string> tickers, CancellationToken cancellationToken)
         {
             _startRequest(logger, null);
             var sw = Stopwatch.StartNew();
-            var securities = await yahooQuotes.GetAsync(tickers, Histories.PriceHistory, ct: cancellationToken).ConfigureAwait(false);
+            var securities = await yahooQuotes.GetHistoryAsync(tickers, ct: cancellationToken).ConfigureAwait(false);
             sw.Stop();
             _endRequest(logger, sw.Elapsed, null);
-            return securities.Values;
+            return securities.Values.Where(x => x.HasValue).Select(x => x.Value);
         }
         public async Task ProcessAsync(CancellationToken cancellationToken)
         {
-            var tickers = await context.Tickers.ToDictionaryAsync(x => $"{x.StockTicker}.SA",cancellationToken).ConfigureAwait(false);
+            var tickers = await context.Tickers.ToDictionaryAsync(x => $"{x.StockTicker}.SA", cancellationToken).ConfigureAwait(false);
             var dataInDb = await context.HistoricalDataYahoos.Select(x => new { x.Ticker, x.Date }).ToDictionaryAsync(x => (x.Date, x.Ticker), cancellationToken).ConfigureAwait(false);
             var securities = await GetSecuritiesAsync(tickers.Keys, cancellationToken).ConfigureAwait(false);
-            foreach(var security in securities.Where(s => s?.PriceHistory.HasValue == true))
+            foreach (var security in securities)
             {
-                if(!tickers.TryGetValue(security!.Symbol.Name, out var ticker))
+                if (!tickers.TryGetValue(security!.Symbol.Name, out var ticker))
                 {
                     continue;
                 }
-                var historicalData = security!.PriceHistory.Value.Where(x => !dataInDb.ContainsKey((x.Date.ToDateOnly(), ticker)) && x.Volume != 0).Select(h => new HistoricalDataYahoo
+                var historicalData = security.Ticks.Where(x => !dataInDb.ContainsKey((DateOnly.FromDateTime(x.Date.ToDateTimeUtc()), ticker)) && x.Volume != 0).Select(h => new HistoricalDataYahoo
                 {
-                    Date = h.Date.ToDateOnly(),
+                    Date = DateOnly.FromDateTime(h.Date.ToDateTimeUtc()),
                     Open = h.Open,
                     High = h.High,
                     Low = h.Low,
